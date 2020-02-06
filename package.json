@@ -21,6 +21,7 @@
   "dependencies": {
     "@aws-cdk/aws-stepfunctions": "*",
     "@aws-cdk/aws-stepfunctions-tasks": "*",
-    "@aws-cdk/core": "*"
+    "@aws-cdk/core": "*",
+    "aws-sdk": "^2.612.0"
   }
 }
