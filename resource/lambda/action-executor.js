@@ -9,6 +9,7 @@ exports.handler = async function(event, context, callback) {
   //    action: { verb: [one of the personalize functions], params: [valid params for the function] },
   //    ...
   // }
+
   try {
     
     if(!event.action.verb in personalize) {
