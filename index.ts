@@ -14,9 +14,7 @@ class JobPollerStack extends cdk.Stack {
             runtime: lambda.Runtime.NODEJS_10_X,
           });
 
-        // Set Personalize permissions - this is required per the Personalize execution role
-
-        if(lambdaFn.role) {
+        if(lambdaFn.role) {  // This weirdness is to get around TS 'undefined' rules
             lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
             lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
         }
@@ -55,7 +53,7 @@ class JobPollerStack extends cdk.Stack {
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE FAILED'), fail)
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'ACTIVE'), success));
 
-        new sfn.StateMachine(this, 'StateMachine', {
+        new sfn.StateMachine(this, 'Create Dataset Group', {
             definition: chain,
             timeout: cdk.Duration.seconds(30)
         });
