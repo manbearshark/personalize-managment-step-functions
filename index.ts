@@ -1,4 +1,5 @@
 import cdk = require('@aws-cdk/core');
+import iam = require("@aws-cdk/aws-iam");
 import sfn = require('@aws-cdk/aws-stepfunctions');
 import lambda = require('@aws-cdk/aws-lambda');
 import sfn_tasks = require('@aws-cdk/aws-stepfunctions-tasks');
@@ -12,6 +13,13 @@ class JobPollerStack extends cdk.Stack {
             handler: 'action-executor.handler',
             runtime: lambda.Runtime.NODEJS_10_X,
           });
+
+        // Set Personalize permissions - this is required per the Personalize execution role
+
+        if(lambdaFn.role) {
+            lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
+            lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
+        }
         
         const createDatasetGroup = new sfn.Task(this, 'Create Dataset Group', {
             task: new sfn_tasks.InvokeFunction(lambdaFn)
@@ -39,6 +47,7 @@ class JobPollerStack extends cdk.Stack {
         const chain = sfn.Chain
             .start(setCreateDatasetGroup)
             .next(createDatasetGroup)
+            .next(wait30Seconds)
             .next(describeDatasetGroupStatus)
             .next(isComplete
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE PENDING'), wait30Seconds)
