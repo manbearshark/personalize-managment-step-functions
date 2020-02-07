@@ -13,11 +13,11 @@ class JobPollerStack extends cdk.Stack {
             runtime: lambda.Runtime.NODEJS_10_X,
           });
         
-        const createDatasetGroupTask = new sfn.Task(this, 'Create Dataset Group', {
+        const createDatasetGroup = new sfn.Task(this, 'Create Dataset Group', {
             task: new sfn_tasks.InvokeFunction(lambdaFn)
         });
 
-        const describeDatasetGroupStatusTask = new sfn.Task(this, 'Describe Dataset Group', {
+        const describeDatasetGroupStatus = new sfn.Task(this, 'Describe Dataset Group', {
             task: new sfn_tasks.InvokeFunction(lambdaFn)
         });
       
@@ -26,19 +26,25 @@ class JobPollerStack extends cdk.Stack {
             resultPath: "$.action"
         });
 
-        //TODO: Add Wait for datasetGroup
+        const wait30Seconds = new sfn.Wait(this, 'Wait 30 Seconds', { 
+            time: sfn.WaitTime.duration(cdk.Duration.seconds(30))
+        });
 
-        const successJob = new sfn.Succeed(this, 'Success');
+        const fail = new sfn.Fail(this, 'Create Failed');
 
-        const isComplete = new sfn.Choice(this, 'Job Complete?');
+        const success = new sfn.Succeed(this, 'Success');
+
+        const isComplete = new sfn.Choice(this, 'Create Complete?');
 
         const chain = sfn.Chain
             .start(setCreateDatasetGroup)
-            .next(createDatasetGroupTask)
-            .next(describeDatasetGroupStatusTask)
+            .next(createDatasetGroup)
+            .next(describeDatasetGroupStatus)
             .next(isComplete
-                .when(sfn.Condition.numberEquals('$.count', 5), successJob)
-                .when(sfn.Condition.numberLessThan('$.count', 5), submitJob));  //TODO: Add wait loop state
+                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE PENDING'), wait30Seconds)
+                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE IN_PROGRESS'), wait30Seconds)
+                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE FAILED'), fail)
+                .when(sfn.Condition.stringEquals('$.action.result.status', 'ACTIVE'), success));
 
         new sfn.StateMachine(this, 'StateMachine', {
             definition: chain,
