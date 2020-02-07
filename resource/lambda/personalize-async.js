@@ -1,31 +1,31 @@
 const AWS = require('aws-sdk');
 const personalize = new AWS.Personalize();
 
-function callAPI(fn, params) {
+const callApi = function (fn, params) {
     return new Promise(function(resolve, reject) {
         fn(params, function(err, data) {
             if(err != null) reject(err);
             else resolve(data);
         });
     });
-}
+};
 
-export async function createDatasetGroup({name, kmsArn, roleArn}) {
+exports.createDatasetGroup = async function ({name, kmsArn, roleArn}) {
     let params = { name, kmsArn, roleArn };
-    return callAPI(personalize.describeDatasetGroup, params);
-}
+    return callApi(personalize.describeDatasetGroup.bind(personalize), params);
+};
 
-export async function createDataset({datasetGroupArn, datasetType, name, schemaArn}) {
+exports.createDataset = async function ({datasetGroupArn, datasetType, name, schemaArn}) {
     let params = {datasetGroupArn, datasetType, name, schemaArn};
-    return callApi(personalize.createDataset, params);
-}
+    return callApi(personalize.createDataset.bind(personalize), params);
+};
 
-export async function describeDatasetGroup({datasetGroupArn}) {
+exports.describeDatasetGroup = async function ({datasetGroupArn}) {
     let params = {datasetGroupArn};
-    return callApi(personalize.describeDatasetGroup, params);
-}
+    return callApi(personalize.describeDatasetGroup.bind(personalize), params);
+};
 
-export async function createSchema({name, schema}) {
+exports.createSchema = async function ({name, schema}) {
     let params = {name, schema};
-    return callApi(personalize.createSchema, params);
-}
+    return callApi(personalize.createSchema.bind(personalize), params);
+};

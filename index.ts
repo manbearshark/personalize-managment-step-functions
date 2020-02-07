@@ -28,7 +28,7 @@ class JobPollerStack extends cdk.Stack {
         });
       
         const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
-            result: { value: { verb: "createDatasetGroup", params: { name: "$.datasetGroupName" } } },
+            result: { value: { verb: "createDatasetGroup", params: { name: "datasetGroupName.$"} } },
             resultPath: "$.action"
         });
 
@@ -42,7 +42,7 @@ class JobPollerStack extends cdk.Stack {
 
         const isComplete = new sfn.Choice(this, 'Create Complete?');
 
-        const chain = sfn.Chain
+        const dsgChain = sfn.Chain
             .start(setCreateDatasetGroup)
             .next(createDatasetGroup)
             .next(wait30Seconds)
@@ -53,8 +53,8 @@ class JobPollerStack extends cdk.Stack {
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE FAILED'), fail)
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'ACTIVE'), success));
 
-        new sfn.StateMachine(this, 'Create Dataset Group', {
-            definition: chain,
+        new sfn.StateMachine(this, 'Create Dataset Group Machine', {
+            definition: dsgChain,
             timeout: cdk.Duration.seconds(30)
         });
     }
