@@ -12,7 +12,12 @@ const callApi = function (fn, params) {
 
 exports.createDatasetGroup = async function ({name, kmsArn, roleArn}) {
     let params = { name, kmsArn, roleArn };
-    return callApi(personalize.describeDatasetGroup.bind(personalize), params);
+    return callApi(personalize.createDatasetGroup.bind(personalize), params);
+};
+
+exports.deleteDatasetGroup = async function ({ datasetGroupArn }) {
+    let params = { datasetGroupArn };
+    return callApi(personalize.deleteDatasetGroup.bind(personalize), params);
 };
 
 exports.createDataset = async function ({datasetGroupArn, datasetType, name, schemaArn}) {

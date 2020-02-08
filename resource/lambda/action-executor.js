@@ -11,7 +11,7 @@ exports.handler = async function(event, context, callback) {
   // }
 
   try {
-    
+    console.log(event);
     if(!(event.action.verb in personalize)) {
         callback("Unsupported action specified: ", event.action.verb);
     }
