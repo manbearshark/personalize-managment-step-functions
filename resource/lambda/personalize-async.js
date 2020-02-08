@@ -10,8 +10,8 @@ const callApi = function (fn, params) {
     });
 };
 
-exports.createDatasetGroup = async function ({name, kmsArn, roleArn}) {
-    let params = { name, kmsArn, roleArn };
+exports.createDatasetGroup = async function ({name}) {
+    let params = { name };
     return callApi(personalize.createDatasetGroup.bind(personalize), params);
 };
 
