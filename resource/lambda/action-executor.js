@@ -17,7 +17,7 @@ exports.handler = async function(event, context, callback) {
     }
 
     let result = await personalize[event.action.verb](event.action.params);
-    callback(null, result);
+    callback(null, { action: { ...result } });
   } catch (e) {
       console.log("ERROR: ", e);
   }

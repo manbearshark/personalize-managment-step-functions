@@ -28,12 +28,13 @@ class JobPollerStack extends cdk.Stack {
         });
       
         const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
-            result: { value: { verb: "createDatasetGroup", params: { name: "datasetGroupName.$"} } },
+            parameters: { verb: "createDatasetGroup", params: { "name.$": "$.datasetGroupName" } },
+            //result: { value: { verb: "createDatasetGroup", params: { name: "datasetGroupName.$"} } },
             resultPath: "$.action"
         });
 
-        const wait30Seconds = new sfn.Wait(this, 'Wait 30 Seconds', { 
-            time: sfn.WaitTime.duration(cdk.Duration.seconds(30))
+        const wait5Seconds = new sfn.Wait(this, 'Wait 5 Seconds', { 
+            time: sfn.WaitTime.duration(cdk.Duration.seconds(5))
         });
 
         const fail = new sfn.Fail(this, 'Create Failed');
@@ -45,11 +46,11 @@ class JobPollerStack extends cdk.Stack {
         const dsgChain = sfn.Chain
             .start(setCreateDatasetGroup)
             .next(createDatasetGroup)
-            .next(wait30Seconds)
+            .next(wait5Seconds)
             .next(describeDatasetGroupStatus)
             .next(isComplete
-                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE PENDING'), wait30Seconds)
-                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE IN_PROGRESS'), wait30Seconds)
+                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE PENDING'), wait5Seconds)
+                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE IN_PROGRESS'), wait5Seconds)
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE FAILED'), fail)
                 .when(sfn.Condition.stringEquals('$.action.result.status', 'ACTIVE'), success));
 
