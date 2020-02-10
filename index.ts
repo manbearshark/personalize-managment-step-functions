@@ -14,7 +14,7 @@ class JobPollerStack extends cdk.Stack {
             runtime: lambda.Runtime.NODEJS_10_X,
           });
 
-        if(lambdaFn.role) {  // This weirdness is to get around TS 'undefined' rules
+        if(lambdaFn.role) {  // This weirdness is to get around TypeScript 'undefined' rules
             lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
             lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
         }
@@ -33,6 +33,11 @@ class JobPollerStack extends cdk.Stack {
             resultPath: "$.action"
         });
 
+        const setDescribeDatasetGroup = new sfn.Pass(this, 'Set Describe Dataset Group', {
+            parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.action.result.datasetGroupArn" } },
+            resultPath: "$.action"
+        });
+
         const wait5Seconds = new sfn.Wait(this, 'Wait 5 Seconds', { 
             time: sfn.WaitTime.duration(cdk.Duration.seconds(5))
         });
@@ -46,6 +51,7 @@ class JobPollerStack extends cdk.Stack {
         const dsgChain = sfn.Chain
             .start(setCreateDatasetGroup)
             .next(createDatasetGroup)
+            .next(setDescribeDatasetGroup)
             .next(wait5Seconds)
             .next(describeDatasetGroupStatus)
             .next(isComplete
