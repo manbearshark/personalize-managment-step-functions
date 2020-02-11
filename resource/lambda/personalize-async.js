@@ -20,17 +20,63 @@ exports.deleteDatasetGroup = async function ({ datasetGroupArn }) {
     return callApi(personalize.deleteDatasetGroup.bind(personalize), params);
 };
 
+exports.describeDatasetGroup = async function ({datasetGroupArn}) {
+    let params = {datasetGroupArn};
+    return callApi(personalize.describeDatasetGroup.bind(personalize), params);
+};
+
 exports.createDataset = async function ({datasetGroupArn, datasetType, name, schemaArn}) {
     let params = {datasetGroupArn, datasetType, name, schemaArn};
     return callApi(personalize.createDataset.bind(personalize), params);
 };
 
-exports.describeDatasetGroup = async function ({datasetGroupArn}) {
-    let params = {datasetGroupArn};
-    return callApi(personalize.describeDatasetGroup.bind(personalize), params);
+exports.deleteDataset = async function({datasetArn}) {
+    let params = {datasetArn};
+    return callApi(personalize.deleteDataset.bind(personalize), params);
+};
+
+exports.describeDataset = async function({datasetArn}) {
+    let params = {datasetArn};
+    return callApi(personalize.desecribeDataset.bind(personalize), params);
 };
 
 exports.createSchema = async function ({name, schema}) {
     let params = {name, schema};
     return callApi(personalize.createSchema.bind(personalize), params);
 };
+
+exports.describeSchema = async function ({schemaArn}) {
+    let params = {schemaArn};
+    return callApi(personalize.describeSchema.bind(personalize), params); 
+};
+
+exports.deleteSchema = async function ({schemaArn}) {
+    let params = {schemaArn};
+    return callApi(personalize.deleteSchema.bind(personalize), params); 
+};
+
+exports.createSolution = async function ({datasetGroupArn, name}) {
+    let params = {datasetGroupArn, name};
+    return callApi(personalize.createSolution.bind(personalize), params);
+};
+
+exports.describeSolution = async function ({solutionArn}) {
+    let params = {solutionArn};
+    return callApi(personalize.describeSolution.bind(personalize), params);
+};
+
+exports.deleteSolution = async function ({solutionArn}) {
+    let params = {solutionArn};
+    return callApi(personalize.deleteSolution.bind(personalize), params); 
+};
+
+exports.createDatsetImportJob = async function ({ dataSource, datasetArn, jobName, roleArn }) {
+    let params = {dataSource, datasetArn, jobName, roleArn};
+    return callApi(personalize.createDatasetImportJob.bind(personalize), params);
+};
+
+exports.describeDatasetImportJob = async function ({describeDatasetImportJobArn}) {
+    let params ={describeDatasetImportJobArn};
+    return callApi(personalize.describeDatasetImportJob.bind(personalize), params);
+};
+
