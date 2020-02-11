@@ -17,7 +17,9 @@ exports.handler = async function(event, context, callback) {
     }
 
     let result = await personalize[event.action.verb](event.action.params);
-    callback(null, { action: { ...result } });
+    let merge = { ...event.action };
+    merge.action.result = { ...result };
+    callback(null, merge);
   } catch (e) {
       console.log("ERROR: ", e);
   }
