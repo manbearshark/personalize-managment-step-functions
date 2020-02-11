@@ -4,7 +4,7 @@ import sfn = require('@aws-cdk/aws-stepfunctions');
 import lambda = require('@aws-cdk/aws-lambda');
 import sfn_tasks = require('@aws-cdk/aws-stepfunctions-tasks');
 
-class JobPollerStack extends cdk.Stack {
+class PersonalizeManagementStack extends cdk.Stack {
     constructor(scope: cdk.App, id: string, props: cdk.StackProps = {}) {
         super(scope, id, props);
 
@@ -70,5 +70,5 @@ class JobPollerStack extends cdk.Stack {
 }
 
 const app = new cdk.App();
-new JobPollerStack(app, 'aws-stepfunctions-integ');
+new PersonalizeManagementStack(app, 'personalize-management-app');
 app.synth();
