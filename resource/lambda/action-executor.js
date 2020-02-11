@@ -17,10 +17,15 @@ exports.handler = async function(event, context, callback) {
     }
 
     let result = await personalize[event.action.verb](event.action.params);
-    let merge = { ...event.action };
+    let merge = { ...event };
     merge.action.result = { ...result };
+    console.log("Result: ", merge);
     callback(null, merge);
   } catch (e) {
       console.log("ERROR: ", e);
+      // Check if this is a case of the resource already existing
+      if(e.code && e.code === 'ResourceAlreadyExistsException') {
+        callback("Resource Exists");
+      }
   }
 }
