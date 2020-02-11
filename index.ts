@@ -30,12 +30,14 @@ class JobPollerStack extends cdk.Stack {
         const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
             parameters: { verb: "createDatasetGroup", params: { "name.$": "$.datasetGroupName" } },
             //result: { value: { verb: "createDatasetGroup", params: { name: "datasetGroupName.$"} } },
-            resultPath: "$.action"
+            resultPath: "$.action",
+            outputPath: "$.action"
         });
 
         const setDescribeDatasetGroup = new sfn.Pass(this, 'Set Describe Dataset Group', {
             parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.action.result.datasetGroupArn" } },
-            resultPath: "$.action"
+            resultPath: "$.action",
+            outputPath: "$.action"
         });
 
         const wait5Seconds = new sfn.Wait(this, 'Wait 5 Seconds', { 
