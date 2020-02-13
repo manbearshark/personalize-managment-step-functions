@@ -79,4 +79,3 @@ exports.describeDatasetImportJob = async function ({describeDatasetImportJobArn}
     let params ={describeDatasetImportJobArn};
     return callApi(personalize.describeDatasetImportJob.bind(personalize), params);
 };
-

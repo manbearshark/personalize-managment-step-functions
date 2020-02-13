@@ -12,8 +12,12 @@ exports.handler = async function(event, context, callback) {
 
   try {
     console.log(event);
-    if(!(event.action.verb in personalize)) {
-        callback("Unsupported action specified: ", event.action.verb);
+    if(event.action.verb === 'noop') {
+      let merge = { ...event };
+      merge.action.result = { result: "noop" };
+      callback(null, merge); // Return the event
+    } else if(!(event.action.verb in personalize)) {
+      callback("Unsupported action specified: ", event.action.verb);
     }
 
     let result = await personalize[event.action.verb](event.action.params);
