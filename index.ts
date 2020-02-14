@@ -28,12 +28,64 @@ class PersonalizeManagementStack extends cdk.Stack {
             outputPath: "$.datasetGroup"
         });
 
+        const createDataset = new sfn.Task(this, 'Create Dataset', {
+            task: new sfn_tasks.InvokeFunction(lambdaFn)
+        });
+
+        const describeDatasetStatus = new sfn.Task(this, 'Describe Dataset', {
+            task: new sfn_tasks.InvokeFunction(lambdaFn),
+            outputPath: "$.dataset"
+        });
+
+        const describeDatasetImportJob = new sfn.Task(this, 'Describe Dataset Import Job', {
+            task: new sfn_tasks.InvokeFunction(lambdaFn),
+            outputPath: "$.datasetImportJob"
+        });
+
+        const createDatasetImportJob = new sfn.Task(this, 'Create Dataset Import Job', {
+            task: new sfn_tasks.InvokeFunction(lambdaFn),
+        });
+
         const createSchema = new sfn.Task(this, 'Create Schema', {
             task: new sfn_tasks.InvokeFunction(lambdaFn)
         });
 
         const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
             parameters: { verb: "createDatasetGroup", params: { "name.$": "$.name" } },
+            resultPath: "$.action"
+        });
+        
+        const setCreateDataset = new sfn.Pass(this, 'Set Create Dataset', {
+            parameters: { 
+                verb: "createDataset", 
+                params: { 
+                    "datasetGroupArn.$": "$.datasetGroupArn", 
+                    "datasetType.$": "$.datasetType", 
+                    "name.$": "$.name",
+                    "schemaArn.$": "$.schemaArn" 
+                } },
+            resultPath: "$.action"
+        });
+
+        const setCreateDatasetImportJob = new sfn.Pass(this, 'Set Create Dataset Import Job', {
+            parameters: { 
+                verb: "createDatasetImportJob", 
+                params: { 
+                    "dataSource.$": "$.dataSource", 
+                    "datasetArn.$": "$.datasetArn", 
+                    "jobName.$": "$.jobName",
+                    "roleArn.$": "$.roleArn" 
+                } },
+            resultPath: "$.action"
+        });
+
+        const setDescribeDataset = new sfn.Pass(this, 'Set Describe Dataset', {
+            parameters: { verb: "describeDataset", params: { "datasetArn.$": "$.datasetArn" } },
+            resultPath: "$.action"
+        });
+
+        const setDescribeDatasetImportJob = new sfn.Pass(this, 'Set Describe Dataset Import Job', {
+            parameters: { verb: "describeDatasetImportJob", params: { "datasetImportJobArn.$": "$.datasetImportJobArn" } },
             resultPath: "$.action"
         });
 
@@ -50,6 +102,13 @@ class PersonalizeManagementStack extends cdk.Stack {
         const wait5Seconds = new sfn.Wait(this, 'Wait 5 Seconds', { 
             time: sfn.WaitTime.duration(cdk.Duration.seconds(5))
         });
+
+        const wait30Seconds = new sfn.Wait(this, 'Wait 30 Seconds', { 
+            time: sfn.WaitTime.duration(cdk.Duration.seconds(30))
+        });
+
+        // TODO: Add 'Catch' to states to capture execution errors as per this blog:
+        // https://theburningmonk.com/2017/07/applying-the-saga-pattern-with-aws-lambda-and-step-functions/
 
         const fail = new sfn.Fail(this, 'Create Failed');
 
@@ -95,12 +154,16 @@ class PersonalizeManagementStack extends cdk.Stack {
                 .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
                 .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), success));
 
-        new sfn.StateMachine(this, 'Create Dataset Group Machine', {
+        new sfn.StateMachine(this, 'Create Personalize Dataset Group', {
             definition: dsgChain
         });
 
-        new sfn.StateMachine(this, 'Create Schema', {
+        new sfn.StateMachine(this, 'Create Personalize Schema', {
             definition: schemaChain
+        });
+
+        new sfn.StateMachine(this, 'Create Personalize Dataset', {
+            definition: dsChain
         });
     }
 }
