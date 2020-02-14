@@ -1,0 +1,8 @@
+{
+  "action": {
+    "verb": "createDatasetGroup",
+    "params": {
+       "name": "testGroup2"
+    }
+  }
+}

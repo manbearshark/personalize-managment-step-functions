@@ -1,0 +1,9 @@
+{
+    "action": {
+      "verb": "noop",
+      "params": {
+         "name": "testGroup2"
+      }
+    }
+  }
+  

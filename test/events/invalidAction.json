@@ -1,0 +1,9 @@
+{
+    "action": {
+      "verb": "invalid",
+      "params": {
+         "name": "testGroup2"
+      }
+    }
+  }
+  
