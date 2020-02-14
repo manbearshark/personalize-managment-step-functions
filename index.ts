@@ -73,7 +73,7 @@ class PersonalizeManagementStack extends cdk.Stack {
             .start(setCreateSchema)
             .next(createSchema)
 
-        /*const dsChain = sfn.Chain
+        const dsChain = sfn.Chain
             .start(setCreateDataset)
             .next(createDataset)
             .next(setDescribeDataset)
@@ -86,7 +86,14 @@ class PersonalizeManagementStack extends cdk.Stack {
                 .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), setCreateDatasetImportJob))
             .next(setCreateDatasetImportJob)
             .next(createDatasetImportJob)
-            .*/
+            .next(setDescribeDatasetImportJob)
+            .next(wait30Seconds)
+            .next(describeDatasetImportJob)
+            .next(isComplete
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDatasetImportJob)
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDatasetImportJob)
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
+                .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), success));
 
         new sfn.StateMachine(this, 'Create Dataset Group Machine', {
             definition: dsgChain
