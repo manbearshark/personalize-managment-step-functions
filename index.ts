@@ -28,6 +28,10 @@ class PersonalizeManagementStack extends cdk.Stack {
             outputPath: "$.datasetGroup"
         });
 
+        const createSchema = new sfn.Task(this, 'Create Schema', {
+            task: new sfn_tasks.InvokeFunction(lambdaFn)
+        });
+
         const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
             parameters: { verb: "createDatasetGroup", params: { "name.$": "$.name" } },
             resultPath: "$.action"
@@ -35,6 +39,11 @@ class PersonalizeManagementStack extends cdk.Stack {
 
         const setDescribeDatasetGroup = new sfn.Pass(this, 'Set Describe Dataset Group', {
             parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.datasetGroupArn" } },
+            resultPath: "$.action"
+        });
+
+        const setCreateSchema = new sfn.Pass(this, 'Set Create Schema', {
+            parameters: { verb: "createSchema", params: { "name.$": "$.name", "schema.$": "$.schema" } },
             resultPath: "$.action"
         });
 
@@ -60,8 +69,31 @@ class PersonalizeManagementStack extends cdk.Stack {
                 .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
                 .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), success));
 
+        const schemaChain = sfn.Chain
+            .start(setCreateSchema)
+            .next(createSchema)
+
+        /*const dsChain = sfn.Chain
+            .start(setCreateDataset)
+            .next(createDataset)
+            .next(setDescribeDataset)
+            .next(wait5Seconds)
+            .next(describeDatasetStatus)
+            .next(isComplete
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDataset)
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDataset)
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
+                .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), setCreateDatasetImportJob))
+            .next(setCreateDatasetImportJob)
+            .next(createDatasetImportJob)
+            .*/
+
         new sfn.StateMachine(this, 'Create Dataset Group Machine', {
             definition: dsgChain
+        });
+
+        new sfn.StateMachine(this, 'Create Schema', {
+            definition: schemaChain
         });
     }
 }
