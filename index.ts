@@ -24,20 +24,18 @@ class PersonalizeManagementStack extends cdk.Stack {
         });
 
         const describeDatasetGroupStatus = new sfn.Task(this, 'Describe Dataset Group', {
-            task: new sfn_tasks.InvokeFunction(lambdaFn)
+            task: new sfn_tasks.InvokeFunction(lambdaFn),
+            outputPath: "$.datasetGroup"
         });
-      
+
         const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
-            parameters: { verb: "createDatasetGroup", params: { "name.$": "$.datasetGroupName" } },
-            //result: { value: { verb: "createDatasetGroup", params: { name: "datasetGroupName.$"} } },
-            resultPath: "$.action",
-            outputPath: "$.action"
+            parameters: { verb: "createDatasetGroup", params: { "name.$": "$.name" } },
+            resultPath: "$.action"
         });
 
         const setDescribeDatasetGroup = new sfn.Pass(this, 'Set Describe Dataset Group', {
-            parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.action.result.datasetGroupArn" } },
-            resultPath: "$.action",
-            outputPath: "$.action"
+            parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.datasetGroupArn" } },
+            resultPath: "$.action"
         });
 
         const wait5Seconds = new sfn.Wait(this, 'Wait 5 Seconds', { 
@@ -57,14 +55,13 @@ class PersonalizeManagementStack extends cdk.Stack {
             .next(wait5Seconds)
             .next(describeDatasetGroupStatus)
             .next(isComplete
-                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE PENDING'), wait5Seconds)
-                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE IN_PROGRESS'), wait5Seconds)
-                .when(sfn.Condition.stringEquals('$.action.result.status', 'CREATE FAILED'), fail)
-                .when(sfn.Condition.stringEquals('$.action.result.status', 'ACTIVE'), success));
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDatasetGroup)
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDatasetGroup)
+                .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
+                .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), success));
 
         new sfn.StateMachine(this, 'Create Dataset Group Machine', {
-            definition: dsgChain,
-            timeout: cdk.Duration.seconds(30)
+            definition: dsgChain
         });
     }
 }

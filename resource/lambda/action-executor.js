@@ -1,7 +1,7 @@
 const personalize = require('./personalize-async');
 
-exports.handler = async function(event, context, callback) {
-  context.callbackWaitsForEmptyEventLoop = false;
+exports.handler = async function(event, context) {
+  //context.callbackWaitsForEmptyEventLoop = false;
 
   // Pass in:
   //
@@ -12,24 +12,22 @@ exports.handler = async function(event, context, callback) {
 
   try {
     console.log(event);
-    if(event.action.verb === 'noop') {
-      let merge = { ...event };
-      merge.action.result = { result: "noop" };
-      callback(null, merge); // Return the event
+    if(event.action.verb === "noop") {
+      return { };
     } else if(!(event.action.verb in personalize)) {
-      callback("Unsupported action specified: ", event.action.verb);
+      throw new TypeError("Unsupported action specified: " + event.action.verb);
     }
 
     let result = await personalize[event.action.verb](event.action.params);
-    let merge = { ...event };
-    merge.action.result = { ...result };
+    let merge = { ...result };
     console.log("Result: ", merge);
-    callback(null, merge);
+    return merge;
   } catch (e) {
       console.log("ERROR: ", e);
       // Check if this is a case of the resource already existing
       if(e.code && e.code === 'ResourceAlreadyExistsException') {
-        callback("Resource Exists");
+        throw new Error("Resource Exists");
       }
+      throw e;
   }
 }
