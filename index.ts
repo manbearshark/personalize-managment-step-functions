@@ -3,6 +3,9 @@ import iam = require("@aws-cdk/aws-iam");
 import sfn = require('@aws-cdk/aws-stepfunctions');
 import lambda = require('@aws-cdk/aws-lambda');
 import sfn_tasks = require('@aws-cdk/aws-stepfunctions-tasks');
+import s3 = require('@aws-cdk/aws-s3');
+
+const DATA_BUCKET_NAME = 'personalize-data';
 
 class PersonalizeManagementStack extends cdk.Stack {
     constructor(scope: cdk.App, id: string, props: cdk.StackProps = {}) {
@@ -12,13 +15,32 @@ class PersonalizeManagementStack extends cdk.Stack {
             code: new lambda.AssetCode('resource/lambda'),
             handler: 'action-executor.handler',
             runtime: lambda.Runtime.NODEJS_10_X,
-          });
+        });
 
+        const dataBucket = new s3.Bucket(this, 'dataBucket', { 
+            bucketName: DATA_BUCKET_NAME,
+            publicReadAccess: false
+        });
+
+        dataBucket.grantReadWrite(lambdaFn);  // Not strictly required but may be handy
+        
         if(lambdaFn.role) {  // This weirdness is to get around TypeScript 'undefined' rules
             lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
             lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
         }
-        
+
+        const personalizeRole = new iam.Role(this, 'PersonalizeExecutionRole', {
+            assumedBy: new iam.ServicePrincipal('personalize.amazonaws.com')
+        });
+
+        personalizeRole.addToPolicy(new iam.PolicyStatement({
+            actions: [ "s3:GetObject", "s3:ListBucket" ],
+            resources: [ dataBucket.bucketArn, dataBucket.bucketArn + '/*' ],
+        }));
+
+        personalizeRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
+        personalizeRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
+
         const createDatasetGroup = new sfn.Task(this, 'Create Dataset Group', {
             task: new sfn_tasks.InvokeFunction(lambdaFn)
         });
