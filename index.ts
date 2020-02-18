@@ -25,6 +25,7 @@ class PersonalizeManagementStack extends Stack {
         this.createPersonalizeDatasetGroupMachine(lambdaFn);
         this.createPersonalizeDatasetMachine(lambdaFn);
         this.createPersonalizeSchemaMachine(lambdaFn);
+        this.createSolutionMachine(lambdaFn);
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -237,7 +238,7 @@ class PersonalizeManagementStack extends Stack {
             time: WaitTime.duration(Duration.minutes(5))
         });
 
-        const createSolution = new Task(this, 'Create Solution', {
+        const createSolution = new Task(this, 'Create Solution Step', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.solution"
         });
@@ -249,7 +250,7 @@ class PersonalizeManagementStack extends Stack {
 
         const setCreateSolution = new Pass(this, 'Set Create Solution', {
             parameters: { verb: "createSolution", 
-                          params: "$" },
+                          "params.$": "$" },  // This subs in all parameters
             resultPath: "$.action"
         });
         
@@ -262,8 +263,8 @@ class PersonalizeManagementStack extends Stack {
         });
 
         const solutionCreateChain = Chain
-            .start(setCreateSolution);
-            /*.next(createSolution)
+            .start(setCreateSolution)
+            .next(createSolution)
             .next(setDescribeSolution)
             .next(wait5Minutes)
             .next(describeSolutionStatus)
@@ -271,7 +272,7 @@ class PersonalizeManagementStack extends Stack {
                 .when(Condition.stringEquals('$.solution.status', 'CREATE PENDING'), setDescribeSolution)
                 .when(Condition.stringEquals('$.solution.status', 'CREATE IN_PROGRESS'), setDescribeSolution)
                 .when(Condition.stringEquals('$.solution.status', 'CREATE FAILED'), fail)
-                .when(Condition.stringEquals('$.solution.status', 'ACTIVE'), success));*/
+                .when(Condition.stringEquals('$.solution.status', 'ACTIVE'), success));
 
         return new StateMachine(this, 'Create Solution', {
             definition: solutionCreateChain

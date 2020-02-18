@@ -1,0 +1,69 @@
+{
+  "datasetGroupArn": "arn:aws:personalize:us-east-1:971461683291:dataset-group/DSG1",
+  "name": "DSG1_Soln",
+  "performAutoML": true
+}
+
+{  
+  "eventType": "",
+  "performAutoML": true || false,
+  "performHPO": true || false,
+  "recipeArn": "STRING_VALUE",
+  "solutionConfig": {
+    "algorithmHyperParameters": {
+      "'<ParameterName>'": "STRING_VALUE",
+
+    },
+    "autoMLConfig": {
+      "metricName": "STRING_VALUE",
+      "recipeList": [
+        "STRING_VALUE",
+
+      ]
+    },
+    "eventValueThreshold": "STRING_VALUE",
+    "featureTransformationParameters": {
+      "'<ParameterName>'": "STRING_VALUE",
+
+    },
+    "hpoConfig": {
+      "algorithmHyperParameterRanges": {
+        "categoricalHyperParameterRanges": [
+          {
+            "name": "STRING_VALUE",
+            "values": [
+              "STRING_VALUE",
+
+            ]
+          },
+
+        ],
+        "continuousHyperParameterRanges": [
+          {
+            "maxValue": "NUMBER_VALUE",
+            "minValue": "NUMBER_VALUE",
+            "name": "STRING_VALUE",
+          },
+
+        ],
+        "integerHyperParameterRanges": [
+          {
+            "maxValue": "NUMBER_VALUE",
+            "minValue": "NUMBER_VALUE",
+            "name": "STRING_VALUE",
+          },
+
+        ]
+      },
+          "hpoObjective": {
+        "metricName": "STRING_VALUE",
+        "metricRegex": "STRING_VALUE",
+        "type": "STRING_VALUE",
+      },
+      "hpoResourceConfig": {
+        "maxNumberOfTrainingJobs": "STRING_VALUE",
+        "maxParallelTrainingJobs": "STRING_VALUE",
+      }
+    }
+  }
+}
