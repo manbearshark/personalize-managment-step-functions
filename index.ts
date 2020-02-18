@@ -21,9 +21,6 @@ class PersonalizeManagementStack extends Stack {
         }
  
         let dataBucket = this.createS3BucketAndPermissions();
-
-        dataBucket.grantReadWrite(lambdaFn);  // Not strictly required but may be handy
-        
         this.createPersonalizeRoleAndPolicy(dataBucket);
         this.createPersonalizeDatasetGroupMachine(lambdaFn);
         this.createPersonalizeDatasetMachine(lambdaFn);
