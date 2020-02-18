@@ -5,8 +5,6 @@ import { Function, AssetCode, Runtime } from "@aws-cdk/aws-lambda";
 import { Task, Pass, Wait, Chain, Fail, Succeed, Choice, Condition, StateMachine, WaitTime } from "@aws-cdk/aws-stepfunctions";
 import { InvokeFunction } from "@aws-cdk/aws-stepfunctions-tasks";
 
-const DATA_BUCKET_NAME = 'personalize-data';
-
 class PersonalizeManagementStack extends Stack {
     constructor(scope: App, id: string, props: StackProps = {}) {
         super(scope, id, props);
@@ -22,7 +20,7 @@ class PersonalizeManagementStack extends Stack {
             lambdaFn.role.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
         }
  
-        let dataBucket = this.createS3BucketAndPermissions(DATA_BUCKET_NAME);
+        let dataBucket = this.createS3BucketAndPermissions();
 
         dataBucket.grantReadWrite(lambdaFn);  // Not strictly required but may be handy
         
@@ -48,9 +46,9 @@ class PersonalizeManagementStack extends Stack {
         return personalizeRole;
     }
 
-    createS3BucketAndPermissions = (bucketName: string) => {
+    createS3BucketAndPermissions = () => {
+        // TODO:  Add encryption options
         return new Bucket(this, 'dataBucket', { 
-            bucketName: bucketName,
             publicReadAccess: false
         });
     }

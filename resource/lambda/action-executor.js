@@ -6,7 +6,8 @@ exports.handler = async function(event, context) {
   // Pass in:
   //
   // {
-  //    action: { verb: [one of the personalize functions], params: [valid params for the function] },
+  //    action: { verb: [one of the personalize functions], 
+  //    params: [valid params for the function] },
   //    ...
   // }
 
