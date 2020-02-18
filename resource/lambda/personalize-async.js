@@ -37,7 +37,12 @@ exports.deleteDataset = async function({datasetArn}) {
 
 exports.describeDataset = async function({datasetArn}) {
     let params = {datasetArn};
-    return callApi(personalize.desecribeDataset.bind(personalize), params);
+    try {
+        let result = await callApi(personalize.describeDataset.bind(personalize), params);
+        return result.dataset;
+    } catch (e) {
+        throw e;
+    }
 };
 
 exports.createSchema = async function ({name, schema}) {
@@ -70,12 +75,17 @@ exports.deleteSolution = async function ({solutionArn}) {
     return callApi(personalize.deleteSolution.bind(personalize), params); 
 };
 
-exports.createDatsetImportJob = async function ({ dataSource, datasetArn, jobName, roleArn }) {
+exports.createDatasetImportJob = async function ({ dataSource, datasetArn, jobName, roleArn }) {
     let params = {dataSource, datasetArn, jobName, roleArn};
     return callApi(personalize.createDatasetImportJob.bind(personalize), params);
 };
 
 exports.describeDatasetImportJob = async function ({describeDatasetImportJobArn}) {
-    let params ={describeDatasetImportJobArn};
-    return callApi(personalize.describeDatasetImportJob.bind(personalize), params);
+    let params ={datasetImportJobArn};
+    try {
+        let result = await callApi(personalize.describeDatasetImportJob.bind(personalize), params);
+        return result.datasetImportJob;
+    } catch (e) {
+        throw e;
+    }
 };

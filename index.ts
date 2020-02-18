@@ -125,12 +125,13 @@ class PersonalizeManagementStack extends Stack {
 
     createPersonalizeDatasetMachine = (lambdaFn: Function) => {
         const createDataset = new Task(this, 'Create Dataset', {
-            task: new InvokeFunction(lambdaFn)
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.dataset"
         });
 
         const describeDatasetStatus = new Task(this, 'Describe Dataset', {
             task: new InvokeFunction(lambdaFn),
-            outputPath: "$.dataset"
+            resultPath: "$.dataset"
         });
 
         const isDatasetComplete = new Choice(this, 'Dataset Create Complete?');
@@ -149,7 +150,7 @@ class PersonalizeManagementStack extends Stack {
         });
 
         const setDescribeDataset = new Pass(this, 'Set Describe Dataset', {
-            parameters: { verb: "describeDataset", params: { "datasetArn.$": "$.datasetArn" } },
+            parameters: { verb: "describeDataset", params: { "datasetArn.$": "$.dataset.datasetArn" } },
             resultPath: "$.action"
         });
 
@@ -158,7 +159,7 @@ class PersonalizeManagementStack extends Stack {
                 verb: "createDatasetImportJob", 
                 params: { 
                     "dataSource.$": "$.dataSource", 
-                    "datasetArn.$": "$.datasetArn", 
+                    "datasetArn.$": "$.dataset.datasetArn", 
                     "jobName.$": "$.jobName",
                     "roleArn.$": "$.roleArn" 
                 } },
@@ -166,17 +167,18 @@ class PersonalizeManagementStack extends Stack {
         });
 
         const setDescribeDatasetImportJob = new Pass(this, 'Set Describe Dataset Import Job', {
-            parameters: { verb: "describeDatasetImportJob", params: { "datasetImportJobArn.$": "$.datasetImportJobArn" } },
+            parameters: { verb: "describeDatasetImportJob", params: { "datasetImportJobArn.$": "$.datasetImportJob.datasetImportJobArn" } },
             resultPath: "$.action"
         });
         
         const describeDatasetImportJob = new Task(this, 'Describe Dataset Import Job', {
             task: new InvokeFunction(lambdaFn),
-            outputPath: "$.datasetImportJob"
+            resultPath: "$.datasetImportJob"
         });
 
         const createDatasetImportJob = new Task(this, 'Create Dataset Import Job', {
             task: new InvokeFunction(lambdaFn),
+            resultPath: "$.datasetImportJob"
         });
 
         const wait10Seconds = new Wait(this, 'Wait 10 Seconds',{
@@ -197,10 +199,10 @@ class PersonalizeManagementStack extends Stack {
             .next(wait30Seconds)
             .next(describeDatasetImportJob)
             .next(isDatasetImportJobComplete
-                .when(Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDatasetImportJob)
-                .when(Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDatasetImportJob)
-                .when(Condition.stringEquals('$.status', 'CREATE FAILED'), createDatasetFail)
-                .when(Condition.stringEquals('$.status', 'ACTIVE'), createDatasetSuccess));
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'CREATE PENDING'), setDescribeDatasetImportJob)
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'CREATE IN_PROGRESS'), setDescribeDatasetImportJob)
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'CREATE FAILED'), createDatasetFail)
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'ACTIVE'), createDatasetSuccess));
 
         const dsChain = Chain
             .start(setCreateDataset)
@@ -209,10 +211,10 @@ class PersonalizeManagementStack extends Stack {
             .next(wait10Seconds)
             .next(describeDatasetStatus)
             .next(isDatasetComplete
-                .when(Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDataset)
-                .when(Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDataset)
-                .when(Condition.stringEquals('$.status', 'CREATE FAILED'), createDatasetFail)
-                .when(Condition.stringEquals('$.status', 'ACTIVE'), setCreateDatasetImportJob));
+                .when(Condition.stringEquals('$.dataset.status', 'CREATE PENDING'), setDescribeDataset)
+                .when(Condition.stringEquals('$.dataset.status', 'CREATE IN_PROGRESS'), setDescribeDataset)
+                .when(Condition.stringEquals('$.dataset.status', 'CREATE FAILED'), createDatasetFail)
+                .when(Condition.stringEquals('$.dataset.status', 'ACTIVE'), setCreateDatasetImportJob));
 
         return new StateMachine(this, 'Create Personalize Dataset', {
             definition: dsChain
