@@ -46,11 +46,19 @@ class PersonalizeManagementStack extends Stack {
         return personalizeRole;
     }
 
-    createS3BucketAndPermissions = () => {
+    createS3BucketAndPermissions = (): Bucket => {
         // TODO:  Add encryption options
-        return new Bucket(this, 'dataBucket', { 
+        let bucket = new Bucket(this, 'dataBucket', { 
             publicReadAccess: false
         });
+
+        bucket.addToResourcePolicy(new PolicyStatement({
+            principals: [ new ServicePrincipal('personalize.amazonaws.com') ],
+            actions: [ "s3:GetObject", "s3:ListBucket" ],
+            resources: [ bucket.bucketArn, bucket.bucketArn + '/*' ],
+        }));
+
+        return bucket;
     }
 
     createPersonalizeSchemaMachine = (lambdaFn: Function) => {
