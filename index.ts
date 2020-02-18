@@ -1,103 +1,235 @@
-import cdk = require('@aws-cdk/core');
-import iam = require("@aws-cdk/aws-iam");
-import sfn = require('@aws-cdk/aws-stepfunctions');
-import lambda = require('@aws-cdk/aws-lambda');
-import sfn_tasks = require('@aws-cdk/aws-stepfunctions-tasks');
+import { Stack, App, StackProps, Duration } from "@aws-cdk/core";
+import { Role, ServicePrincipal, PolicyStatement, ManagedPolicy } from "@aws-cdk/aws-iam";
+import { Bucket } from "@aws-cdk/aws-s3";
+import { Function, AssetCode, Runtime } from "@aws-cdk/aws-lambda";
+import { Task, Pass, Wait, Chain, Fail, Succeed, Choice, Condition, StateMachine, WaitTime } from "@aws-cdk/aws-stepfunctions";
+import { InvokeFunction } from "@aws-cdk/aws-stepfunctions-tasks";
 
-class PersonalizeManagementStack extends cdk.Stack {
-    constructor(scope: cdk.App, id: string, props: cdk.StackProps = {}) {
+class PersonalizeManagementStack extends Stack {
+    constructor(scope: App, id: string, props: StackProps = {}) {
         super(scope, id, props);
 
-        const lambdaFn = new lambda.Function(this, 'PersonalizeAPIExecutor', {
-            code: new lambda.AssetCode('resource/lambda'),
+        const lambdaFn = new Function(this, 'PersonalizeAPIExecutor', {
+            code: new AssetCode('resource/lambda'),
             handler: 'action-executor.handler',
-            runtime: lambda.Runtime.NODEJS_10_X,
-          });
+            runtime: Runtime.NODEJS_10_X,
+        });
 
         if(lambdaFn.role) {  // This weirdness is to get around TypeScript 'undefined' rules
-            lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
-            lambdaFn.role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
+            lambdaFn.role.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
+            lambdaFn.role.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
         }
+ 
+        let dataBucket = this.createS3BucketAndPermissions();
+
+        dataBucket.grantReadWrite(lambdaFn);  // Not strictly required but may be handy
         
-        const createDatasetGroup = new sfn.Task(this, 'Create Dataset Group', {
-            task: new sfn_tasks.InvokeFunction(lambdaFn)
+        this.createPersonalizeRoleAndPolicy(dataBucket);
+        this.createPersonalizeDatasetGroupMachine(lambdaFn);
+        this.createPersonalizeDatasetMachine(lambdaFn);
+        this.createPersonalizeSchemaMachine(lambdaFn);
+    }
+
+    createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
+        let personalizeRole = new Role(this, 'PersonalizeExecutionRole', {
+            assumedBy: new ServicePrincipal('personalize.amazonaws.com')
         });
 
-        const describeDatasetGroupStatus = new sfn.Task(this, 'Describe Dataset Group', {
-            task: new sfn_tasks.InvokeFunction(lambdaFn),
-            outputPath: "$.datasetGroup"
+        personalizeRole.addToPolicy(new PolicyStatement({
+            actions: [ "s3:GetObject", "s3:ListBucket" ],
+            resources: [ dataBucket.bucketArn, dataBucket.bucketArn + '/*' ],
+        }));
+
+        personalizeRole.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonPersonalizeFullAccess'));
+        personalizeRole.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
+
+        return personalizeRole;
+    }
+
+    createS3BucketAndPermissions = (): Bucket => {
+        // TODO:  Add encryption options
+        let bucket = new Bucket(this, 'dataBucket', { 
+            publicReadAccess: false
         });
 
-        const createSchema = new sfn.Task(this, 'Create Schema', {
-            task: new sfn_tasks.InvokeFunction(lambdaFn)
+        bucket.addToResourcePolicy(new PolicyStatement({
+            principals: [ new ServicePrincipal('personalize.amazonaws.com') ],
+            actions: [ "s3:GetObject", "s3:ListBucket" ],
+            resources: [ bucket.bucketArn, bucket.bucketArn + '/*' ],
+        }));
+
+        return bucket;
+    }
+
+    createPersonalizeSchemaMachine = (lambdaFn: Function) => {
+        const createSchema = new Task(this, 'Create Schema', {
+            task: new InvokeFunction(lambdaFn)
         });
 
-        const setCreateDatasetGroup = new sfn.Pass(this, 'Set Create Dataset Group', {
-            parameters: { verb: "createDatasetGroup", params: { "name.$": "$.name" } },
-            resultPath: "$.action"
-        });
-
-        const setDescribeDatasetGroup = new sfn.Pass(this, 'Set Describe Dataset Group', {
-            parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.datasetGroupArn" } },
-            resultPath: "$.action"
-        });
-
-        const setCreateSchema = new sfn.Pass(this, 'Set Create Schema', {
+        const setCreateSchema = new Pass(this, 'Set Create Schema', {
             parameters: { verb: "createSchema", params: { "name.$": "$.name", "schema.$": "$.schema" } },
             resultPath: "$.action"
         });
 
-        const wait5Seconds = new sfn.Wait(this, 'Wait 5 Seconds', { 
-            time: sfn.WaitTime.duration(cdk.Duration.seconds(5))
+        const schemaChain = Chain
+            .start(setCreateSchema)
+            .next(createSchema);
+
+        return new StateMachine(this, 'Create Personalize Schema', {
+            definition: schemaChain
+        });
+    }
+    
+    // TODO: Add 'Catch' to states to capture execution errors as per this blog:
+    // https://theburningmonk.com/2017/07/applying-the-saga-pattern-with-aws-lambda-and-step-functions/
+
+    createPersonalizeDatasetGroupMachine = (lambdaFn: Function) => {
+
+        const fail = new Fail(this, 'Create Dataset Group Failed');
+
+        const success = new Succeed(this, 'Creeate Dataset Group Success');
+
+        const isDatasetGroupComplete = new Choice(this, 'Dataset Group Create Complete?');
+        
+        const wait5Seconds = new Wait(this, 'Wait 5 Seconds', { 
+            time: WaitTime.duration(Duration.seconds(5))
         });
 
-        const fail = new sfn.Fail(this, 'Create Failed');
+        const createDatasetGroup = new Task(this, 'Create Dataset Group', {
+            task: new InvokeFunction(lambdaFn)
+        });
 
-        const success = new sfn.Succeed(this, 'Success');
+        const describeDatasetGroupStatus = new Task(this, 'Describe Dataset Group', {
+            task: new InvokeFunction(lambdaFn),
+            outputPath: "$.datasetGroup"
+        });
 
-        const isComplete = new sfn.Choice(this, 'Create Complete?');
+        const setCreateDatasetGroup = new Pass(this, 'Set Create Dataset Group', {
+            parameters: { verb: "createDatasetGroup", params: { "name.$": "$.name" } },
+            resultPath: "$.action"
+        });
+        
+        const setDescribeDatasetGroup = new Pass(this, 'Set Describe Dataset Group', {
+            parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.datasetGroupArn" } },
+            resultPath: "$.action"
+        });
 
-        const dsgChain = sfn.Chain
+        const dsgChain = Chain
             .start(setCreateDatasetGroup)
             .next(createDatasetGroup)
             .next(setDescribeDatasetGroup)
             .next(wait5Seconds)
             .next(describeDatasetGroupStatus)
-            .next(isComplete
-                .when(sfn.Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDatasetGroup)
-                .when(sfn.Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDatasetGroup)
-                .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
-                .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), success));
+            .next(isDatasetGroupComplete
+                .when(Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDatasetGroup)
+                .when(Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDatasetGroup)
+                .when(Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.status', 'ACTIVE'), success));
 
-        const schemaChain = sfn.Chain
-            .start(setCreateSchema)
-            .next(createSchema)
+        return new StateMachine(this, 'Create Personalize Dataset Group', {
+            definition: dsgChain
+        });
+    }
 
-        /*const dsChain = sfn.Chain
+    createPersonalizeDatasetMachine = (lambdaFn: Function) => {
+        const createDataset = new Task(this, 'Create Dataset', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.dataset"
+        });
+
+        const describeDatasetStatus = new Task(this, 'Describe Dataset', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.dataset"
+        });
+
+        const isDatasetComplete = new Choice(this, 'Dataset Create Complete?');
+        const isDatasetImportJobComplete = new Choice(this, 'Dataset Import Job Complete?');
+
+        const setCreateDataset = new Pass(this, 'Set Create Dataset', {
+            parameters: { 
+                verb: "createDataset", 
+                params: { 
+                    "datasetGroupArn.$": "$.datasetGroupArn", 
+                    "datasetType.$": "$.datasetType", 
+                    "name.$": "$.name",
+                    "schemaArn.$": "$.schemaArn" 
+                } },
+            resultPath: "$.action"
+        });
+
+        const setDescribeDataset = new Pass(this, 'Set Describe Dataset', {
+            parameters: { verb: "describeDataset", params: { "datasetArn.$": "$.dataset.datasetArn" } },
+            resultPath: "$.action"
+        });
+
+        const setCreateDatasetImportJob = new Pass(this, 'Set Create Dataset Import Job', {
+            parameters: { 
+                verb: "createDatasetImportJob", 
+                params: { 
+                    "dataSource.$": "$.dataSource", 
+                    "datasetArn.$": "$.dataset.datasetArn", 
+                    "jobName.$": "$.jobName",
+                    "roleArn.$": "$.roleArn" 
+                } },
+            resultPath: "$.action"
+        });
+
+        const setDescribeDatasetImportJob = new Pass(this, 'Set Describe Dataset Import Job', {
+            parameters: { verb: "describeDatasetImportJob", params: { "datasetImportJobArn.$": "$.datasetImportJob.datasetImportJobArn" } },
+            resultPath: "$.action"
+        });
+        
+        const describeDatasetImportJob = new Task(this, 'Describe Dataset Import Job', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.datasetImportJob"
+        });
+
+        const createDatasetImportJob = new Task(this, 'Create Dataset Import Job', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.datasetImportJob"
+        });
+
+        const wait10Seconds = new Wait(this, 'Wait 10 Seconds',{
+            time: WaitTime.duration(Duration.seconds(10))
+        });
+
+        const wait30Seconds = new Wait(this, 'Wait 30 Seconds', { 
+            time: WaitTime.duration(Duration.seconds(30))
+        });
+
+        const createDatasetFail = new Fail(this, 'Create Dataset Failed');
+
+        const createDatasetSuccess = new Succeed(this, 'Create Dataset Success');
+
+        setCreateDatasetImportJob
+            .next(createDatasetImportJob)
+            .next(setDescribeDatasetImportJob)
+            .next(wait30Seconds)
+            .next(describeDatasetImportJob)
+            .next(isDatasetImportJobComplete
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'CREATE PENDING'), setDescribeDatasetImportJob)
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'CREATE IN_PROGRESS'), setDescribeDatasetImportJob)
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'CREATE FAILED'), createDatasetFail)
+                .when(Condition.stringEquals('$.datasetImportJob.status', 'ACTIVE'), createDatasetSuccess));
+
+        const dsChain = Chain
             .start(setCreateDataset)
             .next(createDataset)
             .next(setDescribeDataset)
-            .next(wait5Seconds)
+            .next(wait10Seconds)
             .next(describeDatasetStatus)
-            .next(isComplete
-                .when(sfn.Condition.stringEquals('$.status', 'CREATE PENDING'), setDescribeDataset)
-                .when(sfn.Condition.stringEquals('$.status', 'CREATE IN_PROGRESS'), setDescribeDataset)
-                .when(sfn.Condition.stringEquals('$.status', 'CREATE FAILED'), fail)
-                .when(sfn.Condition.stringEquals('$.status', 'ACTIVE'), setCreateDatasetImportJob))
-            .next(setCreateDatasetImportJob)
-            .next(createDatasetImportJob)
-            .*/
+            .next(isDatasetComplete
+                .when(Condition.stringEquals('$.dataset.status', 'CREATE PENDING'), setDescribeDataset)
+                .when(Condition.stringEquals('$.dataset.status', 'CREATE IN_PROGRESS'), setDescribeDataset)
+                .when(Condition.stringEquals('$.dataset.status', 'CREATE FAILED'), createDatasetFail)
+                .when(Condition.stringEquals('$.dataset.status', 'ACTIVE'), setCreateDatasetImportJob));
 
-        new sfn.StateMachine(this, 'Create Dataset Group Machine', {
-            definition: dsgChain
-        });
-
-        new sfn.StateMachine(this, 'Create Schema', {
-            definition: schemaChain
+        return new StateMachine(this, 'Create Personalize Dataset', {
+            definition: dsChain
         });
     }
 }
 
-const app = new cdk.App();
+const app = new App();
 new PersonalizeManagementStack(app, 'personalize-management-app');
 app.synth();
