@@ -67,7 +67,12 @@ exports.createSolution = async function ({datasetGroupArn, name}) {
 
 exports.describeSolution = async function ({solutionArn}) {
     let params = {solutionArn};
-    return callApi(personalize.describeSolution.bind(personalize), params);
+    try {
+        let result = callApi(personalize.describeSolution.bind(personalize), params);
+        return result.solution;
+    } catch (e) {
+        throw e;
+    }
 };
 
 exports.deleteSolution = async function ({solutionArn}) {
