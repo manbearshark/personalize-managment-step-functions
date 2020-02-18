@@ -1,0 +1,11 @@
+{
+    "datasetGroupArn": "arn:aws:personalize:us-east-1:971461683291:dataset-group/DSG1",
+    "datasetType": "Interactions",
+    "name": "TestInteractionsDS1",
+    "schemaArn": "arn:aws:personalize:us-east-1:971461683291:schema/product-interactions",
+    "dataSource": {
+        "dataLocation": "s3://personalize-management-app-databucketd8691f4e-ajdoy2d7z9lq/interactions-valid-data.csv"
+    },
+    "jobName": "DS1ImportJob",
+    "roleArn": "arn:aws:iam::971461683291:role/personalize-management-ap-PersonalizeExecutionRole-KXN8QWAY3XK5"
+}
