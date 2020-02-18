@@ -80,7 +80,7 @@ exports.createDatasetImportJob = async function ({ dataSource, datasetArn, jobNa
     return callApi(personalize.createDatasetImportJob.bind(personalize), params);
 };
 
-exports.describeDatasetImportJob = async function ({describeDatasetImportJobArn}) {
+exports.describeDatasetImportJob = async function ({datasetImportJobArn}) {
     let params ={datasetImportJobArn};
     try {
         let result = await callApi(personalize.describeDatasetImportJob.bind(personalize), params);
