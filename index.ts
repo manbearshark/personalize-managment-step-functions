@@ -98,9 +98,7 @@ class PersonalizeManagementStack extends Stack {
             task: new InvokeFunction(lambdaFn)
         });
 
-        const datasetExists = new Fail(this, 'Dataset Exists', {
-            cause: "Dataset Exists",
-        });
+        const datasetExists = new Fail(this, 'Dataset Exists');
 
         createDatasetGroup.addCatch(datasetExists, {
             errors: ['ResourceAlreadyExistsException']
