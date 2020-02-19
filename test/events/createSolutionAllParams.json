@@ -7,58 +7,49 @@
   "performHPO": true,
   "solutionConfig": {
     "algorithmHyperParameters": {
-      "'<ParameterName>'": "STRING_VALUE",
-
+      "'<ParameterName>'": "STRING_VALUE"
     },
     "autoMLConfig": {
       "metricName": "STRING_VALUE",
       "recipeList": [
-        "STRING_VALUE",
-
+        "STRING_VALUE"
       ]
     },
     "eventValueThreshold": "STRING_VALUE",
     "featureTransformationParameters": {
-      "'<ParameterName>'": "STRING_VALUE",
-
+      "'<ParameterName>'": "STRING_VALUE"
     },
     "hpoConfig": {
       "algorithmHyperParameterRanges": {
         "categoricalHyperParameterRanges": [
           {
             "name": "STRING_VALUE",
-            "values": [
-              "STRING_VALUE",
-
-            ]
-          },
-
+            "values": [ "STRING_VALUE" ]
+          }
         ],
         "continuousHyperParameterRanges": [
           {
             "maxValue": "NUMBER_VALUE",
             "minValue": "NUMBER_VALUE",
-            "name": "STRING_VALUE",
-          },
-
+            "name": "STRING_VALUE"
+          }
         ],
         "integerHyperParameterRanges": [
           {
             "maxValue": "NUMBER_VALUE",
             "minValue": "NUMBER_VALUE",
-            "name": "STRING_VALUE",
-          },
-
+            "name": "STRING_VALUE"
+          }
         ]
       },
           "hpoObjective": {
         "metricName": "STRING_VALUE",
         "metricRegex": "STRING_VALUE",
-        "type": "STRING_VALUE",
+        "type": "STRING_VALUE"
       },
       "hpoResourceConfig": {
         "maxNumberOfTrainingJobs": "STRING_VALUE",
-        "maxParallelTrainingJobs": "STRING_VALUE",
+        "maxParallelTrainingJobs": "STRING_VALUE"
       }
     }
   }
