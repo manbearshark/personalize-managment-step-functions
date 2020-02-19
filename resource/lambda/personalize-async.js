@@ -66,7 +66,16 @@ exports.createSolution = async function (params) {
 
 exports.describeSolution = async function (params) {
     try {
-        let result = callApi(personalize.describeSolution.bind(personalize), { ...params });
+        let result = await callApi(personalize.describeSolution.bind(personalize), { ...params });
+        return result.solution;
+    } catch (e) {
+        throw e;
+    }
+};
+
+exports.describeSolutionVersion = async function (params) {
+    try {
+        let result = await callApi(personalize.describeSolutionVersion.bind(personalize), { ...params });
         return result.solution;
     } catch (e) {
         throw e;
