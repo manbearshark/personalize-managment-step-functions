@@ -26,6 +26,7 @@ class PersonalizeManagementStack extends Stack {
         this.createPersonalizeDatasetMachine(lambdaFn);
         this.createPersonalizeSchemaMachine(lambdaFn);
         this.createSolutionMachine(lambdaFn);
+        this.getSolutionStateMachine(lambdaFn);
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -226,6 +227,30 @@ class PersonalizeManagementStack extends Stack {
             definition: dsChain
         });
     }
+
+    getSolutionStateMachine = (lambdaFn: Function) => {
+        const setDescribeSolution = new Pass(this, 'Set Describe Solution Solo', {
+            parameters: { verb: "describeSolution", 
+                          params: { 
+                              "solutionArn.$": "$.solutionArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const describeSolutionStatus = new Task(this, 'Describe Solution Solo', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solution"
+        });
+
+        const solutionCreateChain = Chain
+            .start(setDescribeSolution)
+            .next(describeSolutionStatus)
+
+    return new StateMachine(this, 'Check Solution', {
+        definition: solutionCreateChain
+    });
+    }
+
 
     createSolutionMachine = (lambdaFn: Function) => {
         const fail = new Fail(this, 'Create Solution Failed');

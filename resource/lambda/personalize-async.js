@@ -60,15 +60,13 @@ exports.deleteSchema = async function ({schemaArn}) {
     return callApi(personalize.deleteSchema.bind(personalize), params); 
 };
 
-exports.createSolution = async function ({datasetGroupArn, name}) {
-    let params = {datasetGroupArn, name};
-    return callApi(personalize.createSolution.bind(personalize), params);
+exports.createSolution = async function (params) {
+    return callApi(personalize.createSolution.bind(personalize), { ...params });
 };
 
-exports.describeSolution = async function ({solutionArn}) {
-    let params = {solutionArn};
+exports.describeSolution = async function (params) {
     try {
-        let result = callApi(personalize.describeSolution.bind(personalize), params);
+        let result = callApi(personalize.describeSolution.bind(personalize), { ...params });
         return result.solution;
     } catch (e) {
         throw e;
