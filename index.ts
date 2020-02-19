@@ -25,6 +25,8 @@ class PersonalizeManagementStack extends Stack {
         this.createPersonalizeDatasetGroupMachine(lambdaFn);
         this.createPersonalizeDatasetMachine(lambdaFn);
         this.createPersonalizeSchemaMachine(lambdaFn);
+        this.createSolutionMachine(lambdaFn);
+        this.getSolutionStateMachine(lambdaFn);
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -223,6 +225,82 @@ class PersonalizeManagementStack extends Stack {
 
         return new StateMachine(this, 'Create Personalize Dataset', {
             definition: dsChain
+        });
+    }
+
+    getSolutionStateMachine = (lambdaFn: Function) => {
+        const setDescribeSolution = new Pass(this, 'Set Describe Solution Solo', {
+            parameters: { verb: "describeSolution", 
+                          params: { 
+                              "solutionArn.$": "$.solutionArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const describeSolutionStatus = new Task(this, 'Describe Solution Solo', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solution"
+        });
+
+        const solutionCreateChain = Chain
+            .start(setDescribeSolution)
+            .next(describeSolutionStatus)
+
+    return new StateMachine(this, 'Check Solution', {
+        definition: solutionCreateChain
+    });
+    }
+
+
+    createSolutionMachine = (lambdaFn: Function) => {
+        const fail = new Fail(this, 'Create Solution Failed');
+
+        const success = new Succeed(this, 'Creeate Solution Success');
+
+        const isSolutionComplete = new Choice(this, 'Solution Create Complete?');
+        
+        const wait5Minutes = new Wait(this, 'Wait 5 Minutes', { 
+            time: WaitTime.duration(Duration.minutes(5))
+        });
+
+        const createSolution = new Task(this, 'Create Solution Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solution"
+        });
+
+        const describeSolutionStatus = new Task(this, 'Describe Solution', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solution"
+        });
+
+        const setCreateSolution = new Pass(this, 'Set Create Solution', {
+            parameters: { verb: "createSolution", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });
+        
+        const setDescribeSolution = new Pass(this, 'Set Describe Solution', {
+            parameters: { verb: "describeSolution", 
+                          params: { 
+                              "solutionArn.$": "$.solution.solutionArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const solutionCreateChain = Chain
+            .start(setCreateSolution)
+            .next(createSolution)
+            .next(setDescribeSolution)
+            .next(wait5Minutes)
+            .next(describeSolutionStatus)
+            .next(isSolutionComplete
+                .when(Condition.stringEquals('$.solution.status', 'CREATE PENDING'), setDescribeSolution)
+                .when(Condition.stringEquals('$.solution.status', 'CREATE IN_PROGRESS'), setDescribeSolution)
+                .when(Condition.stringEquals('$.solution.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.solution.status', 'ACTIVE'), success));
+
+        return new StateMachine(this, 'Create Solution', {
+            definition: solutionCreateChain
         });
     }
 }
