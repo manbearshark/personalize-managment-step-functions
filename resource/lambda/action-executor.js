@@ -27,7 +27,9 @@ exports.handler = async function(event, context) {
       console.log("ERROR: ", e);
       // Check if this is a case of the resource already existing
       if(e.code && e.code === 'ResourceAlreadyExistsException') {
-        throw new Error("Resource Exists");
+        let error = new Error('The resource already exists.');
+        error.name = 'ResourceAlreadyExistsException';
+        throw error;
       }
       throw e;
   }
