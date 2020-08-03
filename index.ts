@@ -317,24 +317,24 @@ class PersonalizeManagementStack extends Stack {
 
         const createSolution = new Task(this, 'Create Solution Version Step', {
             task: new InvokeFunction(lambdaFn),
-            resultPath: "$.solution"
+            resultPath: "$.solutionVersion"
         });
 
         const describeSolutionStatus = new Task(this, 'Describe Solution Version', {
             task: new InvokeFunction(lambdaFn),
-            resultPath: "$.solution"
+            resultPath: "$.solutionVersion"
         });
 
         const setCreateSolution = new Pass(this, 'Set Create Solution Version', {
-            parameters: { verb: "createSolution", 
+            parameters: { verb: "createSolutionVersion", 
                           "params.$": "$" },  // This subs in all parameters
             resultPath: "$.action"
         });
         
         const setDescribeSolution = new Pass(this, 'Set Describe Solution Version', {
-            parameters: { verb: "describeSolution", 
+            parameters: { verb: "describeSolutionVersion", 
                           params: { 
-                              "solutionArn.$": "$.solution.solutionArn" 
+                              "solutionVersionArn.$": "$.solutionVersion.solutionVersionArn" 
                           } },
             resultPath: "$.action"
         });
@@ -346,15 +346,15 @@ class PersonalizeManagementStack extends Stack {
             .next(wait5Minutes)
             .next(describeSolutionStatus)
             .next(isSolutionComplete
-                .when(Condition.stringEquals('$.solution.status', 'CREATE PENDING'), setDescribeSolution)
-                .when(Condition.stringEquals('$.solution.status', 'CREATE IN_PROGRESS'), setDescribeSolution)
-                .when(Condition.stringEquals('$.solution.status', 'CREATE FAILED'), fail)
-                .when(Condition.stringEquals('$.solution.status', 'ACTIVE'), success));
+                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE PENDING'), setDescribeSolution)
+                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE IN_PROGRESS'), setDescribeSolution)
+                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.solutionVersion.status', 'ACTIVE'), success));
 
-        return new StateMachine(this, 'Create Solution', {
+        return new StateMachine(this, 'Create Solution Version', {
             definition: solutionCreateChain
         });
-    
+    }
 }
 
 const app = new App();
