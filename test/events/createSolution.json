@@ -5,66 +5,57 @@
   "recipeArn": "arn:aws:personalize:::recipe/aws-hrnn-coldstart"
 }
 
-{  
-  "eventType": "",
-  "performAutoML": true || false,
-  "performHPO": true || false,
-  "recipeArn": "STRING_VALUE",
-  "solutionConfig": {
-    "algorithmHyperParameters": {
-      "'<ParameterName>'": "STRING_VALUE",
-
-    },
-    "autoMLConfig": {
-      "metricName": "STRING_VALUE",
-      "recipeList": [
-        "STRING_VALUE",
-
-      ]
-    },
-    "eventValueThreshold": "STRING_VALUE",
-    "featureTransformationParameters": {
-      "'<ParameterName>'": "STRING_VALUE",
-
-    },
-    "hpoConfig": {
-      "algorithmHyperParameterRanges": {
-        "categoricalHyperParameterRanges": [
-          {
-            "name": "STRING_VALUE",
-            "values": [
-              "STRING_VALUE",
-
-            ]
-          },
-
-        ],
-        "continuousHyperParameterRanges": [
-          {
-            "maxValue": "NUMBER_VALUE",
-            "minValue": "NUMBER_VALUE",
-            "name": "STRING_VALUE",
-          },
-
-        ],
-        "integerHyperParameterRanges": [
-          {
-            "maxValue": "NUMBER_VALUE",
-            "minValue": "NUMBER_VALUE",
-            "name": "STRING_VALUE",
-          },
-
-        ]
-      },
-          "hpoObjective": {
-        "metricName": "STRING_VALUE",
-        "metricRegex": "STRING_VALUE",
-        "type": "STRING_VALUE",
-      },
-      "hpoResourceConfig": {
-        "maxNumberOfTrainingJobs": "STRING_VALUE",
-        "maxParallelTrainingJobs": "STRING_VALUE",
-      }
-    }
+{
+  "datasetGroupArn": "string",
+  "eventType": "string",
+  "name": "string",
+  "performAutoML": boolean,
+  "performHPO": boolean,
+  "recipeArn": "string",
+  "solutionConfig": { 
+     "algorithmHyperParameters": { 
+        "string" : "string" 
+     },
+     "autoMLConfig": { 
+        "metricName": "string",
+        "recipeList": [ "string" ]
+     },
+     "eventValueThreshold": "string",
+     "featureTransformationParameters": { 
+        "string" : "string" 
+     },
+     "hpoConfig": { 
+        "algorithmHyperParameterRanges": { 
+           "categoricalHyperParameterRanges": [ 
+              { 
+                 "name": "string",
+                 "values": [ "string" ]
+              }
+           ],
+           "continuousHyperParameterRanges": [ 
+              { 
+                 "maxValue": number,
+                 "minValue": number,
+                 "name": "string"
+              }
+           ],
+           "integerHyperParameterRanges": [ 
+              { 
+                 "maxValue": number,
+                 "minValue": number,
+                 "name": "string"
+              }
+           ]
+        },
+        "hpoObjective": { 
+           "metricName": "string",
+           "metricRegex": "string",
+           "type": "string"
+        },
+        "hpoResourceConfig": { 
+           "maxNumberOfTrainingJobs": "string",
+           "maxParallelTrainingJobs": "string"
+        }
+     }
   }
 }

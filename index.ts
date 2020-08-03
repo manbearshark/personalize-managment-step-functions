@@ -255,7 +255,7 @@ class PersonalizeManagementStack extends Stack {
     createSolutionMachine = (lambdaFn: Function) => {
         const fail = new Fail(this, 'Create Solution Failed');
 
-        const success = new Succeed(this, 'Creeate Solution Success');
+        const success = new Succeed(this, 'Create Solution Success');
 
         const isSolutionComplete = new Choice(this, 'Solution Create Complete?');
         
@@ -303,6 +303,58 @@ class PersonalizeManagementStack extends Stack {
             definition: solutionCreateChain
         });
     }
+
+    createSolutionVersionMachine = (lambdaFn: Function) => {
+        const fail = new Fail(this, 'Create Solution Version Failed');
+
+        const success = new Succeed(this, 'Create Solution Version Success');
+
+        const isSolutionComplete = new Choice(this, 'Solution Version Create Complete?');
+        
+        const wait5Minutes = new Wait(this, 'Wait 5 Minutes', { 
+            time: WaitTime.duration(Duration.minutes(5))
+        });
+
+        const createSolution = new Task(this, 'Create Solution Version Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solution"
+        });
+
+        const describeSolutionStatus = new Task(this, 'Describe Solution Version', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solution"
+        });
+
+        const setCreateSolution = new Pass(this, 'Set Create Solution Version', {
+            parameters: { verb: "createSolution", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });
+        
+        const setDescribeSolution = new Pass(this, 'Set Describe Solution Version', {
+            parameters: { verb: "describeSolution", 
+                          params: { 
+                              "solutionArn.$": "$.solution.solutionArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const solutionCreateChain = Chain
+            .start(setCreateSolution)
+            .next(createSolution)
+            .next(setDescribeSolution)
+            .next(wait5Minutes)
+            .next(describeSolutionStatus)
+            .next(isSolutionComplete
+                .when(Condition.stringEquals('$.solution.status', 'CREATE PENDING'), setDescribeSolution)
+                .when(Condition.stringEquals('$.solution.status', 'CREATE IN_PROGRESS'), setDescribeSolution)
+                .when(Condition.stringEquals('$.solution.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.solution.status', 'ACTIVE'), success));
+
+        return new StateMachine(this, 'Create Solution', {
+            definition: solutionCreateChain
+        });
+    
 }
 
 const app = new App();
