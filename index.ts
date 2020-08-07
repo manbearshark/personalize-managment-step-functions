@@ -2,7 +2,7 @@ import { Stack, App, StackProps, Duration } from "@aws-cdk/core";
 import { Role, ServicePrincipal, PolicyStatement, ManagedPolicy } from "@aws-cdk/aws-iam";
 import { Bucket } from "@aws-cdk/aws-s3";
 import { Function, AssetCode, Runtime } from "@aws-cdk/aws-lambda";
-import { Task, Pass, Wait, Chain, Fail, Succeed, Choice, Condition, StateMachine, WaitTime } from "@aws-cdk/aws-stepfunctions";
+import { Task, Pass, Wait, Chain, Fail, Succeed, Choice, Condition, StateMachine, WaitTime, Map } from "@aws-cdk/aws-stepfunctions";
 import { InvokeFunction } from "@aws-cdk/aws-stepfunctions-tasks";
 
 class PersonalizeManagementStack extends Stack {
@@ -26,6 +26,8 @@ class PersonalizeManagementStack extends Stack {
         this.createPersonalizeDatasetMachine(lambdaFn);
         this.createPersonalizeSchemaMachine(lambdaFn);
         this.createSolutionMachine(lambdaFn);
+        this.createSolutionVersionMachine(lambdaFn);
+        this.deleteDatasetGroupMachine(lambdaFn);
         this.getSolutionStateMachine(lambdaFn);
     }
 
@@ -251,7 +253,6 @@ class PersonalizeManagementStack extends Stack {
     });
     }
 
-
     createSolutionMachine = (lambdaFn: Function) => {
         const fail = new Fail(this, 'Create Solution Failed');
 
@@ -259,7 +260,7 @@ class PersonalizeManagementStack extends Stack {
 
         const isSolutionComplete = new Choice(this, 'Solution Create Complete?');
         
-        const wait5Minutes = new Wait(this, 'Wait 5 Minutes', { 
+        const wait5Minutes = new Wait(this, 'Create Solution Wait 5 Minutes', { 
             time: WaitTime.duration(Duration.minutes(5))
         });
 
@@ -311,7 +312,7 @@ class PersonalizeManagementStack extends Stack {
 
         const isSolutionComplete = new Choice(this, 'Solution Version Create Complete?');
         
-        const wait5Minutes = new Wait(this, 'Wait 5 Minutes', { 
+        const wait5Minutes = new Wait(this, 'Create Solution Version Wait 5 Minutes', { 
             time: WaitTime.duration(Duration.minutes(5))
         });
 
@@ -355,6 +356,136 @@ class PersonalizeManagementStack extends Stack {
             definition: solutionCreateChain
         });
     }
+
+    deleteDatasetMachine = (lambdaFn: Function) => {
+        const success = new Succeed(this, 'Delete Dataset Success');
+
+        const isDeleteDatasetComplete = new Choice(this, 'Delete Dataset Complete?');
+        
+        const wait5Minutes = new Wait(this, 'Delete Dataset Wait 5 Minutes', { 
+            time: WaitTime.duration(Duration.minutes(5))
+        });
+
+        const deleteDataset = new Task(this, 'Delete Dataset Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.dataset"
+        });
+
+        const describeDatasetStatus = new Task(this, 'Describe Dataset', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.dataset"
+        });
+
+        const setDeleteDataset = new Pass(this, 'Set Delete Dataset', {
+            parameters: { verb: "deleteDataset", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });
+        
+        const setDescribeDataset = new Pass(this, 'Set Describe Dataset', {
+            parameters: { verb: "describeDataset", 
+                          params: { 
+                              "datasetArn.$": "$.dataset.datasetArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const deleteDatasetChain = Chain
+            .start(setDeleteDataset)
+            .next(deleteDataset)
+            .next(setDescribeDataset)
+            .next(wait5Minutes)
+            .next(describeDatasetStatus)
+            .next(isDeleteDatasetComplete
+                .when(Condition.stringEquals('$.dataset.status', 'DELETE PENDING'), setDescribeDataset)
+                .when(Condition.stringEquals('$.dataset.status', 'DELETE IN_PROGRESS'), setDescribeDataset)
+                .otherwise(success));
+
+        return new StateMachine(this, 'Delete Dataset', {
+            definition: deleteDatasetChain
+        });
+    }
+
+    // Delete all dataset group artefacts
+    deleteDatasetGroupMachine = (lambdaFn: Function) => {
+        /*const fail = new Fail(this, 'Delete Dataset Group Failed');
+
+        const success = new Succeed(this, 'Delete Dataset Group Success');
+
+        const isSolutionComplete = new Choice(this, 'Delete Dataset Group Complete?');
+        
+        const wait5Minutes = new Wait(this, 'Delete Dataset Group Wait 30 Seconds', { 
+            time: WaitTime.duration(Duration.seconds(30))
+        });
+
+        const setDeleteDatasetGroup = new Pass(this, 'Set Delete Dataset Group', {
+            parameters: { verb: "createSolutionVersion", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });*/
+
+        const setListAllSolutions = new Pass(this, "Set List All Solutions", {
+            parameters: { verb: "listSolutions",
+                          "params.$": "$" },
+            resultPath: "$.action"
+        });
+
+        const listAllSolutions = new Task(this, 'Delete Dataset Group List All Solutions', {
+            task: new InvokeFunction(lambdaFn), 
+            resultPath: "$.action",
+        });
+
+        const setSolutionsMapPass = new Pass(this, "All Solutions", {
+            parameters: { verb: "deleteSolution", 
+                          "params.$": "$.solutionArn"},
+            resultPath: "$.action"
+        }); 
+        
+        const deleteSolutionMap = new Task(this, 'Delete Dataset Group Delete Solution', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
+        const deleteSolutionsChain = Chain
+            .start(setSolutionsMapPass)
+            .next(deleteSolutionMap)
+
+        const mapSolutions = new Map(this, 'Map All Solutions', {
+            maxConcurrency: 1,
+            itemsPath: "$.action.solutions",
+            resultPath: "$.params"
+        });
+
+        mapSolutions.iterator(deleteSolutionsChain);
+        
+        /*const createSolution = new Task(this, 'Create Solution Version Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solutionVersion"
+        });
+
+        const describeSolutionStatus = new Task(this, 'Describe Solution Version', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.solutionVersion"
+        });
+        
+        const setDescribeSolution = new Pass(this, 'Set Describe Solution Version', {
+            parameters: { verb: "describeSolutionVersion", 
+                          params: { 
+                              "solutionVersionArn.$": "$.solutionVersion.solutionVersionArn" 
+                          } },
+            resultPath: "$.action"
+        });*/
+
+        const deleteDatasetGroupChain = Chain
+            .start(setListAllSolutions)
+            .next(listAllSolutions)
+            .next(mapSolutions);
+
+        return new StateMachine(this, 'Delete Dataset Group', {
+            definition: deleteDatasetGroupChain
+        });
+    }
+ 
 }
 
 const app = new App();

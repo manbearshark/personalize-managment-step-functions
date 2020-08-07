@@ -73,6 +73,10 @@ exports.describeSolution = async function (params) {
     }
 };
 
+exports.listSolutions = async function (params) {
+    return callApi(personalize.listSolutions.bind(personalize), { ...params });
+}
+
 exports.describeSolutionVersion = async function (params) {
     try {
         let result = await callApi(personalize.describeSolutionVersion.bind(personalize), { ...params });
