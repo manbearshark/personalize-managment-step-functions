@@ -30,6 +30,7 @@ class PersonalizeManagementStack extends Stack {
         this.deleteDatasetGroupMachine(lambdaFn);
         this.getSolutionStateMachine(lambdaFn);
         this.createCampaignMachine(lambdaFn);
+        this.createEventTrackerMachine(lambdaFn);
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -373,7 +374,7 @@ class PersonalizeManagementStack extends Stack {
 
         const isCampaignComplete = new Choice(this, 'Create Campaign Complete?');
         
-        const wait5Minutes = new Wait(this, 'Create Campaign Wait 30 Seconds', { 
+        const wait30Seconds = new Wait(this, 'Create Campaign Wait 30 Seconds', { 
             time: WaitTime.duration(Duration.seconds(30))
         });
 
@@ -414,7 +415,7 @@ class PersonalizeManagementStack extends Stack {
             .start(setCreateCampaign)
             .next(createCampaign)
             .next(setDescribeCampaign)
-            .next(wait5Minutes)
+            .next(wait30Seconds)
             .next(describeCampaignStatus)
             .next(isCampaignComplete
                 .when(Condition.stringEquals('$.campaign.status', 'CREATE PENDING'), setDescribeCampaign)
@@ -424,6 +425,66 @@ class PersonalizeManagementStack extends Stack {
 
         return new StateMachine(this, 'Create Campaign', {
             definition: createCampaignChain
+        });
+    }
+
+    createEventTrackerMachine = (lambdaFn: Function) => {
+        const fail = new Fail(this, 'Create Event Tracker Failed');
+
+        const success = new Succeed(this, 'Create Event Tracker Success');
+
+        const isEventTrackerComplete = new Choice(this, 'Create Event Tracker Complete?');
+        
+        const wait30Seconds = new Wait(this, 'Create Event Tracker Wait 30 Seconds', { 
+            time: WaitTime.duration(Duration.seconds(30))
+        });
+
+        const createEventTracker = new Task(this, 'Create Event Tracker Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.eventTracker"
+        });
+
+        const describeEventTrackerStatus = new Task(this, 'Describe Event Tracker', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.eventTracker"
+        });
+
+        /*
+            Input Parameters:
+
+           {
+                "datasetGroupArn": "string",
+                "name": "string"
+           }
+        */
+        const setCreateEventTracker = new Pass(this, 'Set Create Event Tracker', {
+            parameters: { verb: "createEventTracker", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });
+        
+        const setDescribeEventTracker = new Pass(this, 'Set Describe Event Tracker', {
+            parameters: { verb: "describeEventTracker", 
+                          params: { 
+                              "eventTrackerArn.$": "$.eventTracker.eventTrackerArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const createEventTrackerChain = Chain
+            .start(setCreateEventTracker)
+            .next(createEventTracker)
+            .next(setDescribeEventTracker)
+            .next(wait30Seconds)
+            .next(describeEventTrackerStatus)
+            .next(isEventTrackerComplete
+                .when(Condition.stringEquals('$.eventTracker.status', 'CREATE PENDING'), setDescribeEventTracker)
+                .when(Condition.stringEquals('$.eventTracker.status', 'CREATE IN_PROGRESS'), setDescribeEventTracker)
+                .when(Condition.stringEquals('$.eventTracker.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.eventTracker.status', 'ACTIVE'), success));
+
+        return new StateMachine(this, 'Create Event Tracker', {
+            definition: createEventTrackerChain
         });
     }
 
@@ -476,7 +537,9 @@ class PersonalizeManagementStack extends Stack {
         });
     }
 
-    // Delete all dataset group artefacts
+    // Delete all dataset group artefacts - this will delete all campaigns, solutions, trackers, and datasets 
+    // associated with a given dataset group - may run for for a looong time
+
     deleteDatasetGroupMachine = (lambdaFn: Function) => {
         /*const fail = new Fail(this, 'Delete Dataset Group Failed');
 
