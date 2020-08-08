@@ -115,11 +115,33 @@ exports.createCampaign = async function (params) {
     return callApi(personalize.createCampaign.bind(personalize), params);
 }
 
+exports.deleteCampaign = async function (params) {
+    return callApi(personalize.deleteCampaign.bind(personalize), params);
+}
+
 exports.describeCampaign = async function ({campaignArn}) {
     let params = {campaignArn};
     try {
         let result = await callApi(personalize.describeCampaign.bind(personalize), params);
         return result.campaign;
+    } catch (e) {
+        throw e;
+    }
+}
+
+exports.createEventTracker = async function (params) {
+    return callApi(personalize.createEventTracker.bind(personalize), params);
+}
+
+exports.deleteEventTracker = async function (params) {
+    return callApi(personalize.deleteEventTracker.bind(personalize), params);
+}
+
+exports.describeEventTracker = async function ({eventTrackerArn}) {
+    let params = {eventTrackerArn};
+    try {
+        let result = await callApi(personalize.describeEventTracker.bind(personalize), params);
+        return result.eventTracker;
     } catch (e) {
         throw e;
     }
