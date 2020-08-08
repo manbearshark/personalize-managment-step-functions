@@ -373,8 +373,8 @@ class PersonalizeManagementStack extends Stack {
 
         const isCampaignComplete = new Choice(this, 'Create Campaign Complete?');
         
-        const wait5Minutes = new Wait(this, 'Create Campaign Wait 5 Minutes', { 
-            time: WaitTime.duration(Duration.minutes(5))
+        const wait5Minutes = new Wait(this, 'Create Campaign Wait 30 Seconds', { 
+            time: WaitTime.duration(Duration.seconds(30))
         });
 
         const createCampaign = new Task(this, 'Create Campaign Step', {
