@@ -31,6 +31,7 @@ class PersonalizeManagementStack extends Stack {
         this.getSolutionStateMachine(lambdaFn);
         this.createCampaignMachine(lambdaFn);
         this.createEventTrackerMachine(lambdaFn);
+        this.updateCampaignMachine(lambdaFn);
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -428,6 +429,67 @@ class PersonalizeManagementStack extends Stack {
         });
     }
 
+    updateCampaignMachine = (lambdaFn: Function) => {
+        const fail = new Fail(this, 'Update Campaign Failed');
+
+        const success = new Succeed(this, 'Update Campaign Success');
+
+        const isUpdateCampaignComplete = new Choice(this, 'Update Campaign Complete?');
+        
+        const wait30Seconds = new Wait(this, 'Update Campaign Wait 30 Seconds', { 
+            time: WaitTime.duration(Duration.seconds(30))
+        });
+
+        const updateCampaign = new Task(this, 'Update Campaign Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.campaign"
+        });
+
+        const describeUpdateCampaignStatus = new Task(this, 'Describe Update Campaign', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.campaign"
+        });
+
+        /*
+            Input Parameters:
+
+            {
+                "minProvisionedTPS": number,
+                "campaignArn": "string",
+                "solutionVersionArn": "string"
+            }
+        */
+        const setUpdateCampaign = new Pass(this, 'Set Update Campaign', {
+            parameters: { verb: "updateCampaign", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });
+        
+        const setDescribeUpdateCampaign = new Pass(this, 'Set Describe Update Campaign', {
+            parameters: { verb: "describeCampaign", 
+                          params: { 
+                              "campaignArn.$": "$.campaign.campaignArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const updateCampaignChain = Chain
+            .start(setUpdateCampaign)
+            .next(updateCampaign)
+            .next(setDescribeUpdateCampaign)
+            .next(wait30Seconds)
+            .next(describeUpdateCampaignStatus)
+            .next(isUpdateCampaignComplete
+                .when(Condition.stringEquals('$.campaign.status', 'CREATE PENDING'), setDescribeUpdateCampaign)
+                .when(Condition.stringEquals('$.campaign.status', 'CREATE IN_PROGRESS'), setDescribeUpdateCampaign)
+                .when(Condition.stringEquals('$.campaign.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.campaign.status', 'ACTIVE'), success));
+
+        return new StateMachine(this, 'Update Campaign', {
+            definition: updateCampaignChain
+        });
+    }
+
     createEventTrackerMachine = (lambdaFn: Function) => {
         const fail = new Fail(this, 'Create Event Tracker Failed');
 
@@ -540,6 +602,8 @@ class PersonalizeManagementStack extends Stack {
     // Delete all dataset group artefacts - this will delete all campaigns, solutions, trackers, and datasets 
     // associated with a given dataset group - may run for for a looong time
 
+    // TODO:  Add wait states for any datasets that are in create mode when this is run
+    
     deleteDatasetGroupMachine = (lambdaFn: Function) => {
         /*const fail = new Fail(this, 'Delete Dataset Group Failed');
 
@@ -563,33 +627,104 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
 
-        const listAllSolutions = new Task(this, 'Delete Dataset Group List All Solutions', {
+        const listAllSolutions = new Task(this, 'List All Solutions', {
             task: new InvokeFunction(lambdaFn), 
             resultPath: "$.action",
         });
 
-        const setSolutionsMapPass = new Pass(this, "All Solutions", {
+        const setDeleteSolution = new Pass(this, "Set Delete Solution", {
             parameters: { verb: "deleteSolution", 
                           "params.$": "$.solutionArn"},
             resultPath: "$.action"
         }); 
         
-        const deleteSolutionMap = new Task(this, 'Delete Dataset Group Delete Solution', {
+        const deleteSolution = new Task(this, 'Delete Solution', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.action"
         });
 
-        const deleteSolutionsChain = Chain
-            .start(setSolutionsMapPass)
-            .next(deleteSolutionMap);
+        const setDeleteCampaign = new Pass(this, "Set Delete Campaign", {
+            parameters: { verb: "deleteCampaign", 
+                          "params.$": "$.campaignArn"},
+            resultPath: "$.action"
+        }); 
+        
+        const deleteCampaign = new Task(this, 'Delete Campaign', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
 
-        const mapSolutions = new Map(this, 'Map All Solutions', {
+        const setListCampaignsForSolution = new Pass(this, "Set List Campaigns", {
+            parameters: { verb: "listCampaigns",
+                          "params.$": "$.solutionArn" },
+            resultPath: "$.action"
+        });
+
+        const listCampaignsForSolution = new Task(this, "List Campaigns", {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
+        const setListEventTrackers = new Pass(this, "Set List Event Trackers", {
+            parameters: { verb: "listEventTrackers",
+                          "params.$": "$.datasetGroupArn" },
+            resultPath: "$.action"
+        });
+
+        const listEventTrackers = new Task(this, "List Event Trackers", {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
+        const setDeleteEventTracker = new Pass(this, 'Set Delete Event Tracker', {
+            parameters: { verb: 'deleteEventTracker',
+                          "params.$": "$.eventTrackerArn" },
+            resultPath: "$.action"
+        });
+
+        const deleteEventTracker = new Task(this, 'Delete Event Tracker', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        })
+
+        const mapAndDeleteEventTrackers = new Map(this, 'Map Event Trackers', {
+            maxConcurrency: 1,
+            itemsPath: "$.action.eventTrackers",
+            resultPath: "$.params"
+        });
+
+        const deleteEventTrackersChain = Chain
+            .start(setDeleteEventTracker)
+            .next(deleteEventTracker);
+        
+        mapAndDeleteEventTrackers.iterator(deleteEventTrackersChain);
+
+        const mapCampaigns = new Map(this, 'Map and Delete all Campaigns for a Solution', {
+            maxConcurrency: 1,
+            itemsPath: "$.action.campaigns",
+            resultPath: "$.params"
+        });
+       
+        const deleteCampaignsChain = Chain
+            .start(setDeleteCampaign)
+            .next(deleteCampaign);
+
+        mapCampaigns.iterator(deleteCampaignsChain);
+
+        const deleteCampaignsForSolutionChain = Chain
+            .start(setListCampaignsForSolution)
+            .next(listCampaignsForSolution)
+            .next(mapCampaigns)
+            .next(setDeleteSolution)
+            .next(deleteSolution);
+
+        const mapSolutions = new Map(this, 'Map All Solutions and Delete Campaigns', {
             maxConcurrency: 1,
             itemsPath: "$.action.solutions",
             resultPath: "$.params"
         });
 
-        mapSolutions.iterator(deleteSolutionsChain);
+        mapSolutions.iterator(deleteCampaignsForSolutionChain);
         
         /*const createSolution = new Task(this, 'Create Solution Version Step', {
             task: new InvokeFunction(lambdaFn),
@@ -610,7 +745,10 @@ class PersonalizeManagementStack extends Stack {
         });*/
 
         const deleteDatasetGroupChain = Chain
-            .start(setListAllSolutions)
+            .start(setListEventTrackers)
+            .next(listEventTrackers)
+            .next(mapAndDeleteEventTrackers)
+            .next(setListAllSolutions)
             .next(listAllSolutions)
             .next(mapSolutions);
 

@@ -1,0 +1,11 @@
+{
+    "campaignArn": "string",
+    "minProvisionedTPS": 1,
+    "solutionVersionArn": "string"
+}
+
+{
+    "campaignArn": "string",
+    "minProvisionedTPS": number,
+    "solutionVersionArn": "string"
+}

@@ -64,6 +64,11 @@ exports.createSolution = async function (params) {
     return callApi(personalize.createSolution.bind(personalize), { ...params });
 };
 
+exports.deleteSolution = async function ({solutionArn}) {
+    let params = {solutionArn};
+    return callApi(personalize.deleteSolution.bind(personalize), params); 
+};
+
 exports.describeSolution = async function (params) {
     try {
         let result = await callApi(personalize.describeSolution.bind(personalize), { ...params });
@@ -91,11 +96,6 @@ exports.createSolutionVersion = async function (params) {
     return callApi(personalize.createSolutionVersion.bind(personalize), { ...params });
 }
 
-exports.deleteSolution = async function ({solutionArn}) {
-    let params = {solutionArn};
-    return callApi(personalize.deleteSolution.bind(personalize), params); 
-};
-
 exports.createDatasetImportJob = async function ({ dataSource, datasetArn, jobName, roleArn }) {
     let params = {dataSource, datasetArn, jobName, roleArn};
     return callApi(personalize.createDatasetImportJob.bind(personalize), params);
@@ -119,6 +119,10 @@ exports.deleteCampaign = async function (params) {
     return callApi(personalize.deleteCampaign.bind(personalize), params);
 }
 
+exports.updateCampaign = async function (params) {
+    return callApi(personalize.updateCampaign.bind(personalize), params);
+}
+
 exports.describeCampaign = async function ({campaignArn}) {
     let params = {campaignArn};
     try {
@@ -127,6 +131,10 @@ exports.describeCampaign = async function ({campaignArn}) {
     } catch (e) {
         throw e;
     }
+}
+
+exports.listEventTrackers = async function (params) {
+    return callApi(personalize.listEventTrackers.bind(personalize), params);
 }
 
 exports.createEventTracker = async function (params) {
