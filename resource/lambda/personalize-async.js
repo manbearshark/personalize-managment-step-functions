@@ -77,14 +77,19 @@ exports.listSolutions = async function (params) {
     return callApi(personalize.listSolutions.bind(personalize), { ...params });
 }
 
-exports.describeSolutionVersion = async function (params) {
+exports.describeSolutionVersion = async function ({solutionVersionArn}) {
+    let params = {solutionVersionArn}
     try {
         let result = await callApi(personalize.describeSolutionVersion.bind(personalize), { ...params });
-        return result.solution;
+        return result.solutionVersion;
     } catch (e) {
         throw e;
     }
 };
+
+exports.createSolutionVersion = async function (params) {
+    return callApi(personalize.createSolutionVersion.bind(personalize), { ...params });
+}
 
 exports.deleteSolution = async function ({solutionArn}) {
     let params = {solutionArn};
@@ -97,7 +102,7 @@ exports.createDatasetImportJob = async function ({ dataSource, datasetArn, jobNa
 };
 
 exports.describeDatasetImportJob = async function ({datasetImportJobArn}) {
-    let params ={datasetImportJobArn};
+    let params = {datasetImportJobArn};
     try {
         let result = await callApi(personalize.describeDatasetImportJob.bind(personalize), params);
         return result.datasetImportJob;
@@ -105,3 +110,17 @@ exports.describeDatasetImportJob = async function ({datasetImportJobArn}) {
         throw e;
     }
 };
+
+exports.createCampaign = async function (params) {
+    return callApi(personalize.createCampaign.bind(personalize), params);
+}
+
+exports.describeCampaign = async function ({campaignArn}) {
+    let params = {campaignArn};
+    try {
+        let result = await callApi(personalize.describeCampaign.bind(personalize), params);
+        return result.campaign;
+    } catch (e) {
+        throw e;
+    }
+}

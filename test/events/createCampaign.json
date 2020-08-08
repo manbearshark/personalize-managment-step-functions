@@ -1,0 +1,11 @@
+{
+    "minProvisionedTPS": 1,
+    "name": "DSG1_Campaign",
+    "solutionVersionArn": "arn:aws:personalize:us-east-1:971461683291:solution/DSG1/1cec0b45"
+}
+
+{
+    "minProvisionedTPS": number,
+    "name": "string",
+    "solutionVersionArn": "string"
+}

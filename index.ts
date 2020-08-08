@@ -29,6 +29,7 @@ class PersonalizeManagementStack extends Stack {
         this.createSolutionVersionMachine(lambdaFn);
         this.deleteDatasetGroupMachine(lambdaFn);
         this.getSolutionStateMachine(lambdaFn);
+        this.createCampaignMachine(lambdaFn);
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -310,29 +311,37 @@ class PersonalizeManagementStack extends Stack {
 
         const success = new Succeed(this, 'Create Solution Version Success');
 
-        const isSolutionComplete = new Choice(this, 'Solution Version Create Complete?');
+        const isSolutionVersionComplete = new Choice(this, 'Solution Version Create Complete?');
         
         const wait5Minutes = new Wait(this, 'Create Solution Version Wait 5 Minutes', { 
             time: WaitTime.duration(Duration.minutes(5))
         });
 
-        const createSolution = new Task(this, 'Create Solution Version Step', {
+        const createSolutionVersion = new Task(this, 'Create Solution Version Step', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.solutionVersion"
         });
 
-        const describeSolutionStatus = new Task(this, 'Describe Solution Version', {
+        const describeSolutionVersionStatus = new Task(this, 'Describe Solution Version', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.solutionVersion"
         });
 
-        const setCreateSolution = new Pass(this, 'Set Create Solution Version', {
+        /*
+            Input Parameters:
+
+            {
+                 "solutionArn": "string",
+                 "trainingMode": "string"
+            }
+        */
+        const setCreateSolutionVersion = new Pass(this, 'Set Create Solution Version', {
             parameters: { verb: "createSolutionVersion", 
                           "params.$": "$" },  // This subs in all parameters
             resultPath: "$.action"
         });
         
-        const setDescribeSolution = new Pass(this, 'Set Describe Solution Version', {
+        const setDescribeSolutionVersion = new Pass(this, 'Set Describe Solution Version', {
             parameters: { verb: "describeSolutionVersion", 
                           params: { 
                               "solutionVersionArn.$": "$.solutionVersion.solutionVersionArn" 
@@ -340,20 +349,81 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
 
-        const solutionCreateChain = Chain
-            .start(setCreateSolution)
-            .next(createSolution)
-            .next(setDescribeSolution)
+        const solutionVersionCreateChain = Chain
+            .start(setCreateSolutionVersion)
+            .next(createSolutionVersion)
+            .next(setDescribeSolutionVersion)
             .next(wait5Minutes)
-            .next(describeSolutionStatus)
-            .next(isSolutionComplete
-                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE PENDING'), setDescribeSolution)
-                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE IN_PROGRESS'), setDescribeSolution)
+            .next(describeSolutionVersionStatus)
+            .next(isSolutionVersionComplete
+                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE PENDING'), setDescribeSolutionVersion)
+                .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE IN_PROGRESS'), setDescribeSolutionVersion)
                 .when(Condition.stringEquals('$.solutionVersion.status', 'CREATE FAILED'), fail)
                 .when(Condition.stringEquals('$.solutionVersion.status', 'ACTIVE'), success));
 
         return new StateMachine(this, 'Create Solution Version', {
-            definition: solutionCreateChain
+            definition: solutionVersionCreateChain
+        });
+    }
+
+    createCampaignMachine = (lambdaFn: Function) => {
+        const fail = new Fail(this, 'Create Campaign Failed');
+
+        const success = new Succeed(this, 'Create Campaign Success');
+
+        const isCampaignComplete = new Choice(this, 'Create Campaign Complete?');
+        
+        const wait5Minutes = new Wait(this, 'Create Campaign Wait 5 Minutes', { 
+            time: WaitTime.duration(Duration.minutes(5))
+        });
+
+        const createCampaign = new Task(this, 'Create Campaign Step', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.campaign"
+        });
+
+        const describeCampaignStatus = new Task(this, 'Describe Campaign', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.campaign"
+        });
+
+        /*
+            Input Parameters:
+
+            {
+                "minProvisionedTPS": number,
+                "name": "string",
+                "solutionVersionArn": "string"
+            }
+        */
+        const setCreateCampaign = new Pass(this, 'Set Create Campaign', {
+            parameters: { verb: "createCampaign", 
+                          "params.$": "$" },  // This subs in all parameters
+            resultPath: "$.action"
+        });
+        
+        const setDescribeCampaign = new Pass(this, 'Set Describe Campaign', {
+            parameters: { verb: "describeCampaign", 
+                          params: { 
+                              "campaignArn.$": "$.campaign.campaignArn" 
+                          } },
+            resultPath: "$.action"
+        });
+
+        const createCampaignChain = Chain
+            .start(setCreateCampaign)
+            .next(createCampaign)
+            .next(setDescribeCampaign)
+            .next(wait5Minutes)
+            .next(describeCampaignStatus)
+            .next(isCampaignComplete
+                .when(Condition.stringEquals('$.campaign.status', 'CREATE PENDING'), setDescribeCampaign)
+                .when(Condition.stringEquals('$.campaign.status', 'CREATE IN_PROGRESS'), setDescribeCampaign)
+                .when(Condition.stringEquals('$.campaign.status', 'CREATE FAILED'), fail)
+                .when(Condition.stringEquals('$.campaign.status', 'ACTIVE'), success));
+
+        return new StateMachine(this, 'Create Campaign', {
+            definition: createCampaignChain
         });
     }
 
@@ -448,7 +518,7 @@ class PersonalizeManagementStack extends Stack {
 
         const deleteSolutionsChain = Chain
             .start(setSolutionsMapPass)
-            .next(deleteSolutionMap)
+            .next(deleteSolutionMap);
 
         const mapSolutions = new Map(this, 'Map All Solutions', {
             maxConcurrency: 1,
