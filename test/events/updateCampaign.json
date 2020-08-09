@@ -1,7 +1,7 @@
 {
-    "campaignArn": "string",
+    "campaignArn": "arn:aws:personalize:us-east-1:971461683291:campaign/DSG1_Campaign_Test",
     "minProvisionedTPS": 1,
-    "solutionVersionArn": "string"
+    "solutionVersionArn": "arn:aws:personalize:us-east-1:971461683291:solution/DSG1/31e40cd2"
 }
 
 {
