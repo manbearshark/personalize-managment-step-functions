@@ -603,24 +603,8 @@ class PersonalizeManagementStack extends Stack {
     // associated with a given dataset group - may run for for a looong time
 
     // TODO:  Add wait states for any datasets that are in create mode when this is run
-    
+
     deleteDatasetGroupMachine = (lambdaFn: Function) => {
-        /*const fail = new Fail(this, 'Delete Dataset Group Failed');
-
-        const success = new Succeed(this, 'Delete Dataset Group Success');
-
-        const isSolutionComplete = new Choice(this, 'Delete Dataset Group Complete?');
-        
-        const wait5Minutes = new Wait(this, 'Delete Dataset Group Wait 30 Seconds', { 
-            time: WaitTime.duration(Duration.seconds(30))
-        });
-
-        const setDeleteDatasetGroup = new Pass(this, 'Set Delete Dataset Group', {
-            parameters: { verb: "createSolutionVersion", 
-                          "params.$": "$" },  // This subs in all parameters
-            resultPath: "$.action"
-        });*/
-
         const setListAllSolutions = new Pass(this, "Set List All Solutions", {
             parameters: { verb: "listSolutions",
                           "params.$": "$" },
@@ -726,24 +710,6 @@ class PersonalizeManagementStack extends Stack {
 
         mapSolutions.iterator(deleteCampaignsForSolutionChain);
         
-        /*const createSolution = new Task(this, 'Create Solution Version Step', {
-            task: new InvokeFunction(lambdaFn),
-            resultPath: "$.solutionVersion"
-        });
-
-        const describeSolutionStatus = new Task(this, 'Describe Solution Version', {
-            task: new InvokeFunction(lambdaFn),
-            resultPath: "$.solutionVersion"
-        });
-        
-        const setDescribeSolution = new Pass(this, 'Set Describe Solution Version', {
-            parameters: { verb: "describeSolutionVersion", 
-                          params: { 
-                              "solutionVersionArn.$": "$.solutionVersion.solutionVersionArn" 
-                          } },
-            resultPath: "$.action"
-        });*/
-
         const deleteDatasetGroupChain = Chain
             .start(setListEventTrackers)
             .next(listEventTrackers)
