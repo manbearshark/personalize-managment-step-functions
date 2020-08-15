@@ -91,7 +91,7 @@ class PersonalizeManagementStack extends Stack {
 
         const fail = new Fail(this, 'Create Dataset Group Failed');
 
-        const success = new Succeed(this, 'Creeate Dataset Group Success');
+        const success = new Succeed(this, 'Create Dataset Group Success');
 
         const isDatasetGroupComplete = new Choice(this, 'Dataset Group Create Complete?');
         
@@ -101,6 +101,12 @@ class PersonalizeManagementStack extends Stack {
 
         const createDatasetGroup = new Task(this, 'Create Dataset Group', {
             task: new InvokeFunction(lambdaFn)
+        });
+
+        const datasetExists = new Fail(this, 'Dataset Exists');
+
+        createDatasetGroup.addCatch(datasetExists, {
+            errors: ['ResourceAlreadyExistsException']
         });
 
         const describeDatasetGroupStatus = new Task(this, 'Describe Dataset Group', {
@@ -303,7 +309,7 @@ class PersonalizeManagementStack extends Stack {
                 .when(Condition.stringEquals('$.solution.status', 'CREATE FAILED'), fail)
                 .when(Condition.stringEquals('$.solution.status', 'ACTIVE'), success));
 
-        return new StateMachine(this, 'Create Solution', {
+        return new StateMachine(this, 'Create Personalize Solution', {
             definition: solutionCreateChain
         });
     }
