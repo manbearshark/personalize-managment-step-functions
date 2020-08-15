@@ -257,7 +257,7 @@ class PersonalizeManagementStack extends Stack {
             .start(setDescribeSolution)
             .next(describeSolutionStatus)
 
-    return new StateMachine(this, 'Check Solution', {
+    return new StateMachine(this, 'Check Solution Status', {
         definition: solutionCreateChain
     });
     }
@@ -683,6 +683,17 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.params"
         });
 
+        const setDeleteDatasetGroup = new Pass(this, 'Set Delete Dataset Group', {
+            parameters: { verb: 'deleteDatasetGroup',
+                          "params.$": "$.datasetGroupArn" },
+            resultPath: "$.action"
+        });
+
+        const deleteDatasetGroup = new Task(this, 'Delete Dataset Group', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
         const deleteEventTrackersChain = Chain
             .start(setDeleteEventTracker)
             .next(deleteEventTracker);
@@ -722,9 +733,11 @@ class PersonalizeManagementStack extends Stack {
             .next(mapAndDeleteEventTrackers)
             .next(setListAllSolutions)
             .next(listAllSolutions)
-            .next(mapSolutions);
+            .next(mapSolutions)
+            .next(setDeleteDatasetGroup)
+            .next(deleteDatasetGroup);
 
-        return new StateMachine(this, 'Delete Dataset Group', {
+        return new StateMachine(this, 'Delete All Dataset Group Resources', {
             definition: deleteDatasetGroupChain
         });
     }
