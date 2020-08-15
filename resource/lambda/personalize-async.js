@@ -64,6 +64,11 @@ exports.createSolution = async function (params) {
     return callApi(personalize.createSolution.bind(personalize), { ...params });
 };
 
+exports.deleteSolution = async function ({solutionArn}) {
+    let params = {solutionArn};
+    return callApi(personalize.deleteSolution.bind(personalize), params); 
+};
+
 exports.describeSolution = async function (params) {
     try {
         let result = await callApi(personalize.describeSolution.bind(personalize), { ...params });
@@ -73,19 +78,23 @@ exports.describeSolution = async function (params) {
     }
 };
 
-exports.describeSolutionVersion = async function (params) {
+exports.listSolutions = async function (params) {
+    return callApi(personalize.listSolutions.bind(personalize), { ...params });
+}
+
+exports.describeSolutionVersion = async function ({solutionVersionArn}) {
+    let params = {solutionVersionArn}
     try {
         let result = await callApi(personalize.describeSolutionVersion.bind(personalize), { ...params });
-        return result.solution;
+        return result.solutionVersion;
     } catch (e) {
         throw e;
     }
 };
 
-exports.deleteSolution = async function ({solutionArn}) {
-    let params = {solutionArn};
-    return callApi(personalize.deleteSolution.bind(personalize), params); 
-};
+exports.createSolutionVersion = async function (params) {
+    return callApi(personalize.createSolutionVersion.bind(personalize), { ...params });
+}
 
 exports.createDatasetImportJob = async function ({ dataSource, datasetArn, jobName, roleArn }) {
     let params = {dataSource, datasetArn, jobName, roleArn};
@@ -93,7 +102,7 @@ exports.createDatasetImportJob = async function ({ dataSource, datasetArn, jobNa
 };
 
 exports.describeDatasetImportJob = async function ({datasetImportJobArn}) {
-    let params ={datasetImportJobArn};
+    let params = {datasetImportJobArn};
     try {
         let result = await callApi(personalize.describeDatasetImportJob.bind(personalize), params);
         return result.datasetImportJob;
@@ -101,3 +110,47 @@ exports.describeDatasetImportJob = async function ({datasetImportJobArn}) {
         throw e;
     }
 };
+
+exports.createCampaign = async function (params) {
+    return callApi(personalize.createCampaign.bind(personalize), params);
+}
+
+exports.deleteCampaign = async function (params) {
+    return callApi(personalize.deleteCampaign.bind(personalize), params);
+}
+
+exports.updateCampaign = async function (params) {
+    return callApi(personalize.updateCampaign.bind(personalize), params);
+}
+
+exports.describeCampaign = async function ({campaignArn}) {
+    let params = {campaignArn};
+    try {
+        let result = await callApi(personalize.describeCampaign.bind(personalize), params);
+        return result.campaign;
+    } catch (e) {
+        throw e;
+    }
+}
+
+exports.listEventTrackers = async function (params) {
+    return callApi(personalize.listEventTrackers.bind(personalize), params);
+}
+
+exports.createEventTracker = async function (params) {
+    return callApi(personalize.createEventTracker.bind(personalize), params);
+}
+
+exports.deleteEventTracker = async function (params) {
+    return callApi(personalize.deleteEventTracker.bind(personalize), params);
+}
+
+exports.describeEventTracker = async function ({eventTrackerArn}) {
+    let params = {eventTrackerArn};
+    try {
+        let result = await callApi(personalize.describeEventTracker.bind(personalize), params);
+        return result.eventTracker;
+    } catch (e) {
+        throw e;
+    }
+}
