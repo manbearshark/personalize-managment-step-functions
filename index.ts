@@ -25,7 +25,7 @@ class PersonalizeManagementStack extends Stack {
         this.deleteDatasetMachine(lambdaFn);
         this.createPersonalizeRoleAndPolicy(dataBucket);
         this.createPersonalizeDatasetGroupMachine(lambdaFn);
-        this.createPersonalizeDatasetMachine(lambdaFn);
+        this.createPersonalizeDatasetWithImportJobMachine(lambdaFn);
         this.createPersonalizeSchemaMachine(lambdaFn);
         this.createSolutionMachine(lambdaFn);
         this.createSolutionVersionMachine(lambdaFn);
@@ -146,7 +146,7 @@ class PersonalizeManagementStack extends Stack {
         });
     }
 
-    createPersonalizeDatasetMachine = (lambdaFn: Function) => {
+    createPersonalizeDatasetWithImportJobMachine = (lambdaFn: Function) => {
         const createDataset = new Task(this, 'Create Dataset', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.dataset"
@@ -239,7 +239,7 @@ class PersonalizeManagementStack extends Stack {
                 .when(Condition.stringEquals('$.dataset.status', 'CREATE FAILED'), createDatasetFail)
                 .when(Condition.stringEquals('$.dataset.status', 'ACTIVE'), setCreateDatasetImportJob));
 
-        return new StateMachine(this, 'Create Personalize Dataset', {
+        return new StateMachine(this, 'Create Personalize Dataset with Import Job', {
             definition: dsChain
         });
     }
