@@ -146,6 +146,20 @@ class PersonalizeManagementStack extends Stack {
         });
     }
 
+    /* Inputs:
+        {
+            "datasetGroupArn": "dataset group arn string",
+            "datasetType": "[Interactions | Items | Users]",
+            "name": "string",
+            "schemaArn": "schema arn string",
+            "dataSource": {
+                "dataLocation": "s3://[bucket path to csv file]"
+            },
+            "jobName": "job name string",
+            "roleArn": "S3 access role ARN for dataset import job"
+        }
+    */
+
     createPersonalizeDatasetWithImportJobMachine = (lambdaFn: Function) => {
         const createDataset = new Task(this, 'Create Dataset', {
             task: new InvokeFunction(lambdaFn),
