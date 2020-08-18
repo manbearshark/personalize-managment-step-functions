@@ -154,3 +154,19 @@ exports.describeEventTracker = async function ({eventTrackerArn}) {
         throw e;
     }
 }
+
+exports.listCampaigns = async function (params) {
+    return callApi(personalize.listCampaigns.bind(personalize), params);
+}
+
+exports.deleteCampaign = async function (params) {
+    return callApi(personalize.deleteCampaign.bind(personalize), params);
+}
+
+exports.listDatasets = async function (params) {
+    return callApi(personalize.listDatasets.bind(personalize), params);
+}
+
+exports.deleteDataset = async function (params) {
+    return callApi(personalize.deleteDataset.bind(personalize), params);
+}

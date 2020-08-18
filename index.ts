@@ -20,10 +20,12 @@ class PersonalizeManagementStack extends Stack {
             lambdaFn.role.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('CloudWatchFullAccess'));
         }
  
+
         let dataBucket = this.createS3BucketAndPermissions();
+        this.deleteDatasetMachine(lambdaFn);
         this.createPersonalizeRoleAndPolicy(dataBucket);
         this.createPersonalizeDatasetGroupMachine(lambdaFn);
-        this.createPersonalizeDatasetMachine(lambdaFn);
+        this.createPersonalizeDatasetWithImportJobMachine(lambdaFn);
         this.createPersonalizeSchemaMachine(lambdaFn);
         this.createSolutionMachine(lambdaFn);
         this.createSolutionVersionMachine(lambdaFn);
@@ -32,6 +34,7 @@ class PersonalizeManagementStack extends Stack {
         this.createCampaignMachine(lambdaFn);
         this.createEventTrackerMachine(lambdaFn);
         this.updateCampaignMachine(lambdaFn);
+        this.testMachine();
     }
 
     createPersonalizeRoleAndPolicy = (dataBucket: Bucket) => {
@@ -119,6 +122,8 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
         
+        // TODO:  The describe steps are re-useable - refactor these into module scope methods so they are reusable
+
         const setDescribeDatasetGroup = new Pass(this, 'Set Describe Dataset Group', {
             parameters: { verb: "describeDatasetGroup", params: { "datasetGroupArn.$": "$.datasetGroupArn" } },
             resultPath: "$.action"
@@ -141,13 +146,27 @@ class PersonalizeManagementStack extends Stack {
         });
     }
 
-    createPersonalizeDatasetMachine = (lambdaFn: Function) => {
+    /* Inputs:
+        {
+            "datasetGroupArn": "dataset group arn string",
+            "datasetType": "[Interactions | Items | Users]",
+            "name": "string",
+            "schemaArn": "schema arn string",
+            "dataSource": {
+                "dataLocation": "s3://[bucket path to csv file]"
+            },
+            "jobName": "job name string",
+            "roleArn": "S3 access role ARN for dataset import job"
+        }
+    */
+
+    createPersonalizeDatasetWithImportJobMachine = (lambdaFn: Function) => {
         const createDataset = new Task(this, 'Create Dataset', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.dataset"
         });
 
-        const describeDatasetStatus = new Task(this, 'Describe Dataset', {
+        const describeDatasetStatus = new Task(this, 'Describe Dataset Create Dataset', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.dataset"
         });
@@ -167,7 +186,7 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
 
-        const setDescribeDataset = new Pass(this, 'Set Describe Dataset', {
+        const setDescribeDataset = new Pass(this, 'Create Dataset - Set Describe Dataset', {
             parameters: { verb: "describeDataset", params: { "datasetArn.$": "$.dataset.datasetArn" } },
             resultPath: "$.action"
         });
@@ -234,7 +253,7 @@ class PersonalizeManagementStack extends Stack {
                 .when(Condition.stringEquals('$.dataset.status', 'CREATE FAILED'), createDatasetFail)
                 .when(Condition.stringEquals('$.dataset.status', 'ACTIVE'), setCreateDatasetImportJob));
 
-        return new StateMachine(this, 'Create Personalize Dataset', {
+        return new StateMachine(this, 'Create Personalize Dataset with Import Job', {
             definition: dsChain
         });
     }
@@ -257,7 +276,7 @@ class PersonalizeManagementStack extends Stack {
             .start(setDescribeSolution)
             .next(describeSolutionStatus)
 
-    return new StateMachine(this, 'Check Solution', {
+    return new StateMachine(this, 'Check Solution Status', {
         definition: solutionCreateChain
     });
     }
@@ -570,7 +589,7 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.dataset"
         });
 
-        const describeDatasetStatus = new Task(this, 'Describe Dataset', {
+        const describeDatasetStatus = new Task(this, 'Describe Dataset Delete Dataset', {
             task: new InvokeFunction(lambdaFn),
             resultPath: "$.dataset"
         });
@@ -581,7 +600,7 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
         
-        const setDescribeDataset = new Pass(this, 'Set Describe Dataset', {
+        const setDescribeDataset = new Pass(this, 'Delete Dataset - Set Describe Dataset', {
             parameters: { verb: "describeDataset", 
                           params: { 
                               "datasetArn.$": "$.dataset.datasetArn" 
@@ -605,12 +624,32 @@ class PersonalizeManagementStack extends Stack {
         });
     }
 
+    testMachine = () => {
+        const setTest = new Pass(this, "Set Test", {
+            parameters: { verb: "listSolutions",
+                          "params.$": "$" },
+            resultPath: "$.action"
+        });
+
+        const testChain = Chain
+            .start(setTest);
+
+        return new StateMachine(this, 'Test Machine', {
+            definition: testChain
+        });
+    }
+
     // Delete all dataset group artefacts - this will delete all campaigns, solutions, trackers, and datasets 
     // associated with a given dataset group - may run for for a looong time
 
     // TODO:  Add wait states for any datasets that are in create mode when this is run
 
     deleteDatasetGroupMachine = (lambdaFn: Function) => {
+
+        const getParamsListAllSolutions =  new Pass(this, "Get Parameters List All Solutions", {
+            parameters: { "datasetGroupArn.$": "$.datasetGroupArn" }
+        });
+
         const setListAllSolutions = new Pass(this, "Set List All Solutions", {
             parameters: { verb: "listSolutions",
                           "params.$": "$" },
@@ -622,9 +661,13 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action",
         });
 
+        const getDeleteSolutionParams = new Pass(this, "Get Delete Solution Params", {
+            parameters: { "solutionArn.$": "$.solutionArn" }
+        });
+
         const setDeleteSolution = new Pass(this, "Set Delete Solution", {
             parameters: { verb: "deleteSolution", 
-                          "params.$": "$.solutionArn"},
+                          "params.$": "$"},
             resultPath: "$.action"
         }); 
         
@@ -633,9 +676,13 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
 
+        const getDeleteCampaignParams = new Pass(this, "Get Delete Campaign Params", {
+            parameters: { "campaignArn.$": "$.campaignArn" }
+        });
+
         const setDeleteCampaign = new Pass(this, "Set Delete Campaign", {
             parameters: { verb: "deleteCampaign", 
-                          "params.$": "$.campaignArn"},
+                          "params.$": "$"},
             resultPath: "$.action"
         }); 
         
@@ -644,9 +691,13 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
 
+        const getParametersListCampaigns = new Pass(this, "Get Parameters List Campaigns", {
+            parameters: { "solutionArn.$": "$.solutionArn"}
+        });
+
         const setListCampaignsForSolution = new Pass(this, "Set List Campaigns", {
             parameters: { verb: "listCampaigns",
-                          "params.$": "$.solutionArn" },
+                          "params.$": "$" },
             resultPath: "$.action"
         });
 
@@ -657,7 +708,7 @@ class PersonalizeManagementStack extends Stack {
 
         const setListEventTrackers = new Pass(this, "Set List Event Trackers", {
             parameters: { verb: "listEventTrackers",
-                          "params.$": "$.datasetGroupArn" },
+                          "params.$": "$" },
             resultPath: "$.action"
         });
 
@@ -666,9 +717,13 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.action"
         });
 
+        const getEventTrackerArn = new Pass(this, "Get Event Tracker Arn", {
+            parameters: { "eventTrackerArn.$": "$.eventTrackerArn" }
+        });
+
         const setDeleteEventTracker = new Pass(this, 'Set Delete Event Tracker', {
             parameters: { verb: 'deleteEventTracker',
-                          "params.$": "$.eventTrackerArn" },
+                          "params.$": "$" },
             resultPath: "$.action"
         });
 
@@ -683,8 +738,24 @@ class PersonalizeManagementStack extends Stack {
             resultPath: "$.params"
         });
 
+        const getDeleteDatasetGroupParams = new Pass(this, 'Get Delete Dataset Group Params', {
+            parameters: { "datasetGroupArn.$": "$.datasetGroupArn"}
+        });
+
+        const setDeleteDatasetGroup = new Pass(this, 'Set Delete Dataset Group', {
+            parameters: { verb: 'deleteDatasetGroup',
+                          "params.$": "$" },
+            resultPath: "$.action"
+        });
+
+        const deleteDatasetGroup = new Task(this, 'Delete Dataset Group', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
         const deleteEventTrackersChain = Chain
-            .start(setDeleteEventTracker)
+            .start(getEventTrackerArn)
+            .next(setDeleteEventTracker)
             .next(deleteEventTracker);
         
         mapAndDeleteEventTrackers.iterator(deleteEventTrackersChain);
@@ -696,15 +767,18 @@ class PersonalizeManagementStack extends Stack {
         });
        
         const deleteCampaignsChain = Chain
-            .start(setDeleteCampaign)
+            .start(getDeleteCampaignParams)
+            .next(setDeleteCampaign)
             .next(deleteCampaign);
 
         mapCampaigns.iterator(deleteCampaignsChain);
 
         const deleteCampaignsForSolutionChain = Chain
-            .start(setListCampaignsForSolution)
+            .start(getParametersListCampaigns)
+            .next(setListCampaignsForSolution)
             .next(listCampaignsForSolution)
             .next(mapCampaigns)
+            .next(getDeleteSolutionParams)
             .next(setDeleteSolution)
             .next(deleteSolution);
 
@@ -715,16 +789,67 @@ class PersonalizeManagementStack extends Stack {
         });
 
         mapSolutions.iterator(deleteCampaignsForSolutionChain);
-        
+
+        const mapDeleteDatasets = new Map(this, 'Map and Delete All Datasets', {
+            maxConcurrency: 1,
+            itemsPath: "$.action.datasets",
+            resultPath: "$.params"
+        });
+
+        const getParametersForDataset = new Pass(this, 'Get Parameters Delete Dataset', {
+            parameters: { "datasetArn.$": "$.datasetArn" }
+        });
+
+        const setDeleteDataset = new Pass(this, 'Set Delete Dataset from Group', {
+            parameters: { verb: "deleteDataset",
+                          "params.$": "$" },
+            resultPath: "$.action"
+        });
+
+        const deleteDataset = new Task(this, 'Delete Dataset from Group', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
+        const deleteDatasetsForGroupChain = Chain
+            .start(getParametersForDataset)
+            .next(setDeleteDataset)
+            .next(deleteDataset);
+
+        mapDeleteDatasets.iterator(deleteDatasetsForGroupChain);
+
+        const getListDatasetsParams = new Pass(this, 'Get List Datasets Params', {
+            parameters: { "datasetGroupArn.$": "$.datasetGroupArn" }
+        });
+
+        const setListDatasets = new Pass(this, 'Set List Datasets', {
+            parameters: { verb: "listDatasets",
+                          "params.$": "$" },
+            resultPath: "$.action"
+        });
+
+        const listDatasets = new Task(this, 'List Datasets', {
+            task: new InvokeFunction(lambdaFn),
+            resultPath: "$.action"
+        });
+
         const deleteDatasetGroupChain = Chain
             .start(setListEventTrackers)
             .next(listEventTrackers)
             .next(mapAndDeleteEventTrackers)
+            .next(getParamsListAllSolutions)
             .next(setListAllSolutions)
             .next(listAllSolutions)
-            .next(mapSolutions);
+            .next(mapSolutions)
+            .next(getListDatasetsParams)
+            .next(setListDatasets)
+            .next(listDatasets)
+            .next(mapDeleteDatasets)
+            .next(getDeleteDatasetGroupParams)
+            .next(setDeleteDatasetGroup)
+            .next(deleteDatasetGroup);
 
-        return new StateMachine(this, 'Delete Dataset Group', {
+        return new StateMachine(this, 'Delete All Dataset Group Resources', {
             definition: deleteDatasetGroupChain
         });
     }
