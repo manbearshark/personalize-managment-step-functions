@@ -22,6 +22,6 @@
     "@aws-cdk/aws-stepfunctions": "*",
     "@aws-cdk/aws-stepfunctions-tasks": "*",
     "@aws-cdk/core": "*",
-    "aws-sdk": "^2.612.0"
+    "aws-sdk": "^2.814.0"
   }
 }
